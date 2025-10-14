@@ -732,9 +732,10 @@ function pickNextWhisper(list: Whisper[], mood: string): Whisper | null {
 function calculateProgressionStats(reflections: Reflection[]): Stats {
   let longestStreak = 0;
   if (reflections.length > 0) {
+    const validReflections = reflections.filter((r: Reflection) => r.createdAt);
     const uniqueDates = Array.from(
       new Set(
-        reflections
+        validReflections
           .map(
             (r: Reflection) => r.createdAt.toDate().toISOString().split("T")[0]
           )
