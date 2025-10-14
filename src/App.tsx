@@ -1,6 +1,4 @@
 import React, { useState, useEffect, useRef } from "react";
-
-// --- FIREBASE V9 IMPORTS ---
 import { initializeApp } from "firebase/app";
 import {
   getAuth,
@@ -9,6 +7,7 @@ import {
   signOut,
   GoogleAuthProvider,
   linkWithPopup,
+  User,
 } from "firebase/auth";
 import {
   getFirestore,
@@ -18,64 +17,77 @@ import {
   onSnapshot,
   orderBy,
   serverTimestamp,
+  Timestamp,
 } from "firebase/firestore";
 
-// THEME: tokens and styles
+// --- TYPE DEFINITIONS ---
+type Firefly = {
+  id: number;
+  left: number;
+  top: number;
+  size: number;
+  duration: number;
+  delay: number;
+  opacity: number;
+};
+type Whisper = {
+  id: string;
+  whisperType: string;
+  title: string;
+  prompt: string;
+  emotion: string;
+  expansion: string;
+  randomSeed: number;
+};
+type ProgressionStage = {
+  id: string;
+  name: string;
+  icon: string;
+  meaning: string;
+  criteria: {
+    minReflections: number;
+    minMoods: number;
+    minStreakDays: number;
+    minDeepWrites: number;
+  };
+  rewards: {
+    badge: string;
+    message: string;
+    visual: { fireflies: number; glowIntensity: number };
+  };
+};
+type Reflection = {
+  id: string;
+  createdAt: Timestamp;
+  whisperTitle: string;
+  whisperPrompt: string;
+  whisperEmotion: string;
+  whisperType: string | null;
+  entry: string;
+  date?: string;
+};
+type Stats = {
+  totalReflections: number;
+  uniqueMoods: number;
+  deepWrites: number;
+  longestStreak: number;
+};
+
+// --- STYLES & ICONS ---
 const GlobalStyles = () => (
   <style>{`
-      @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Lora:wght@400;700&display=swap');
-      body { font-family: 'Inter', sans-serif; }
-      .font-lora { font-family: 'Lora', serif; }
-
-      :root{
-        --color-bg:#212F26;
-        --color-surface:rgba(255,255,255,0.06);
-        --color-surface-border:rgba(255,255,255,0.20);
-        --color-text:#E0EAE3;
-        --color-text-muted:#C0CAC4;
-        --color-text-subtle:#A0A7A3;
-        --color-accent:#76A68A;
-        --color-accent-ink:#212F26;
-        --color-glow:#8BA72D;
-        --shadow-soft:0 10px 30px rgba(0,0,0,0.25);
-      }
-
-      @keyframes fadeIn { from{opacity:0} to{opacity:1} }
-      .animate-fadeIn{ animation:fadeIn .5s ease-in-out }
-
-      @keyframes fadeOut { from{opacity:1} to{opacity:0} }
-      .animate-fadeOut{ animation:fadeOut .5s ease-in-out forwards }
-
-      @keyframes scaleIn { from{opacity:0;transform:scale(.97)} to{opacity:1;transform:scale(1)} }
-      .animate-scaleIn{ animation:scaleIn .5s ease-in-out }
-
-      @keyframes glowPulse {
-        0%   { box-shadow:0 0 0px var(--color-glow); }
-        50%  { box-shadow:0 0 22px var(--color-glow); }
-        100% { box-shadow:0 0 0px var(--color-glow); }
-      }
-
-      @keyframes fireflyFloat {
-        0%   { transform:translate3d(0,0,0) scale(.9);   opacity:.0; }
-        10%  { opacity:.85; }
-        50%  { transform:translate3d(20px,-30px,0) scale(1); }
-        80%  { opacity:.6; }
-        100% { transform:translate3d(-10px,-60px,0) scale(.95); opacity:.0; }
-      }
-      @keyframes fireflyTwinkle {
-        0%,100% { filter:drop-shadow(0 0 0px var(--color-glow)); }
-        50%     { filter:drop-shadow(0 0 10px var(--color-glow)); }
-      }
-
-      @media (prefers-reduced-motion: reduce){
-        .animate-fadeIn,.animate-scaleIn{ animation:none }
-        .glow-cta{ animation:none }
-        .firefly{ animation:none }
-      }
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Lora:wght@400;700&display=swap');
+    body { font-family: 'Inter', sans-serif; }
+    .font-lora { font-family: 'Lora', serif; }
+    :root{ --color-bg:#212F26; --color-surface:rgba(255,255,255,0.06); --color-surface-border:rgba(255,255,255,0.20); --color-text:#E0EAE3; --color-text-muted:#C0CAC4; --color-text-subtle:#A0A7A3; --color-accent:#76A68A; --color-accent-ink:#212F26; --color-glow:#8BA72D; --shadow-soft:0 10px 30px rgba(0,0,0,0.25); }
+    @keyframes fadeIn { from{opacity:0} to{opacity:1} } .animate-fadeIn{ animation:fadeIn .5s ease-in-out }
+    @keyframes scaleIn { from{opacity:0;transform:scale(.97)} to{opacity:1;transform:scale(1)} } .animate-scaleIn{ animation:scaleIn .5s ease-in-out }
+    @keyframes glowPulse { 0% { box-shadow:0 0 0px var(--color-glow); } 50% { box-shadow:0 0 22px var(--color-glow); } 100% { box-shadow:0 0 0px var(--color-glow); } }
+    @keyframes fireflyFloat { 0% { transform:translate3d(0,0,0) scale(.9); opacity:.0; } 10% { opacity:.85; } 50% { transform:translate3d(20px,-30px,0) scale(1); } 80% { opacity:.6; } 100% { transform:translate3d(-10px,-60px,0) scale(.95); opacity:.0; } }
+    @keyframes fireflyTwinkle { 0%,100% { filter:drop-shadow(0 0 0px var(--color-glow)); } 50% { filter:drop-shadow(0 0 10px var(--color-glow)); } }
+    @media (prefers-reduced-motion: reduce){ .animate-fadeIn,.animate-scaleIn,.glow-cta,.firefly{ animation:none } }
   `}</style>
 );
-
-// --- SVG ICONS ---
 const WriteIcon = () => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
@@ -156,24 +168,13 @@ const GoogleIcon = () => (
   </svg>
 );
 
-// --- TYPE DEFINITIONS (for TypeScript) ---
-type Firefly = {
-  id: number;
-  left: number;
-  top: number;
-  size: number;
-  duration: number;
-  delay: number;
-  opacity: number;
-};
-
 // --- DECORATIVE COMPONENTS ---
 function FirefliesLayer({ baseCount = 12, additionalCount = 0 }) {
   const [flies, setFlies] = useState<Firefly[]>([]);
-  const totalCount = baseCount + additionalCount;
-
   useEffect(() => {
-    const arr: Firefly[] = Array.from({ length: totalCount }).map((_, i) => ({
+    const arr: Firefly[] = Array.from({
+      length: baseCount + additionalCount,
+    }).map((_, i) => ({
       id: i,
       left: Math.random() * 100,
       top: Math.random() * 100,
@@ -183,8 +184,7 @@ function FirefliesLayer({ baseCount = 12, additionalCount = 0 }) {
       opacity: 0.6 + Math.random() * 0.4,
     }));
     setFlies(arr);
-  }, [totalCount]);
-
+  }, [baseCount, additionalCount]);
   return (
     <div
       aria-hidden
@@ -219,8 +219,8 @@ function FirefliesLayer({ baseCount = 12, additionalCount = 0 }) {
   );
 }
 
-// WHISPERS: embedded CSV & PROGRESSION: data
-const WHISPERS = [
+// --- DATA & LOGIC ---
+const WHISPERS: Whisper[] = [
   {
     id: "326",
     whisperType: "Sad",
@@ -541,7 +541,7 @@ const WHISPERS = [
     randomSeed: 0.464,
   },
 ];
-const PROGRESSION_STAGES = [
+const PROGRESSION_STAGES: ProgressionStage[] = [
   {
     id: "spark",
     name: "Spark",
@@ -684,9 +684,7 @@ const STRINGS = {
   releaseAffirmation: "Releasing to welcome a new whisper.",
   emptySaved: "Your saved reflections will appear here as your glow grows.",
 };
-
-// WHISPERS & PROGRESSION: Logic
-function getShownSet(mood) {
+function getShownSet(mood: string): Set<string> {
   try {
     return new Set(
       JSON.parse(localStorage.getItem(`espiritnu_shown_${mood}`) || "[]")
@@ -695,69 +693,85 @@ function getShownSet(mood) {
     return new Set();
   }
 }
-function addToShownSet(mood, id) {
+function addToShownSet(mood: string, id: string) {
   const s = getShownSet(mood);
   s.add(id);
-  localStorage.setItem(`espiritnu_shown_${mood}`, JSON.stringify([...s]));
+  localStorage.setItem(
+    `espiritnu_shown_${mood}`,
+    JSON.stringify(Array.from(s))
+  );
 }
-function resetShownSet(mood) {
+function resetShownSet(mood: string) {
   localStorage.removeItem(`espiritnu_shown_${mood}`);
 }
-const MOOD_INDEX = (() => {
-  const e = new Map();
-  for (const t of WHISPERS) {
-    const o = (t.emotion || "").toLowerCase();
-    e.has(o) || e.set(o, []), e.get(o).push(t);
+const MOOD_INDEX: Map<string, Whisper[]> = (() => {
+  const map = new Map<string, Whisper[]>();
+  for (const whisper of WHISPERS) {
+    const mood = (whisper.emotion || "").toLowerCase();
+    if (!map.has(mood)) map.set(mood, []);
+    map.get(mood)?.push(whisper);
   }
-  for (const t of e.values()) t.sort((e, t) => e.randomSeed - t.randomSeed);
-  return e;
+  for (const list of Array.from(map.values())) {
+    list.sort((a: Whisper, b: Whisper) => a.randomSeed - b.randomSeed);
+  }
+  return map;
 })();
-function getWhispersByMood(mood) {
+function getWhispersByMood(mood: string): Whisper[] {
   return MOOD_INDEX.get((mood || "").toLowerCase()) || [];
 }
-function pickNextWhisper(list, mood) {
-  if (!list || 0 === list.length) return null;
-  const t = getShownSet(mood),
-    o = list.filter((e) => !t.has(e.id));
-  if (0 === o.length)
-    return resetShownSet(mood), list[Math.floor(Math.random() * list.length)];
-  const n = Math.floor(Math.random() * o.length);
-  return o[n];
+function pickNextWhisper(list: Whisper[], mood: string): Whisper | null {
+  if (!list || list.length === 0) return null;
+  const shownSet = getShownSet(mood);
+  const available = list.filter((w) => !shownSet.has(w.id));
+  if (available.length === 0) {
+    resetShownSet(mood);
+    return list[Math.floor(Math.random() * list.length)];
+  }
+  return available[Math.floor(Math.random() * available.length)];
 }
-function calculateProgressionStats(reflections) {
-  const totalReflections = reflections.length;
-  const uniqueMoods = new Set(reflections.map((r) => r.whisperEmotion)).size;
-  const deepWrites = reflections.filter(
-    (r) => (r.entry || "").length > 180
-  ).length;
+function calculateProgressionStats(reflections: Reflection[]): Stats {
   let longestStreak = 0;
   if (reflections.length > 0) {
-    const dates = reflections
-      .filter((r) => r.createdAt && typeof r.createdAt.toDate === "function")
-      .map((r) => r.createdAt.toDate())
-      .sort((a, b) => a - b)
-      .map((d) => d.toISOString().split("T")[0]);
-    const uniqueDates = Array.from(new Set(dates));
+    const uniqueDates = Array.from(
+      new Set(
+        reflections
+          .map(
+            (r: Reflection) => r.createdAt.toDate().toISOString().split("T")[0]
+          )
+          .sort((a: string, b: string) => a.localeCompare(b))
+      )
+    );
     if (uniqueDates.length > 0) {
       let currentStreak = 1;
       longestStreak = 1;
       for (let i = 1; i < uniqueDates.length; i++) {
         const d1 = new Date(uniqueDates[i - 1]);
         const d2 = new Date(uniqueDates[i]);
-        const diffTime = d2 - d1;
-        const diffDays = Math.round(diffTime / (1e3 * 60 * 60 * 24));
-        1 === diffDays
-          ? currentStreak++
-          : 2 === diffDays
-          ? currentStreak++
-          : (currentStreak = 1),
-          currentStreak > longestStreak && (longestStreak = currentStreak);
+        const diffDays = Math.round(
+          (d2.getTime() - d1.getTime()) / (1000 * 60 * 60 * 24)
+        );
+        if (diffDays === 1) {
+          currentStreak++;
+        } else {
+          currentStreak = 1;
+        }
+        if (currentStreak > longestStreak) {
+          longestStreak = currentStreak;
+        }
       }
     }
   }
-  return { totalReflections, uniqueMoods, deepWrites, longestStreak };
+  return {
+    totalReflections: reflections.length,
+    uniqueMoods: new Set(reflections.map((r: Reflection) => r.whisperEmotion))
+      .size,
+    deepWrites: reflections.filter(
+      (r: Reflection) => (r.entry || "").length > 180
+    ).length,
+    longestStreak,
+  };
 }
-function determineCurrentStage(stats) {
+function determineCurrentStage(stats: Stats): ProgressionStage {
   for (let i = PROGRESSION_STAGES.length - 1; i >= 0; i--) {
     const stage = PROGRESSION_STAGES[i];
     if (
@@ -772,29 +786,30 @@ function determineCurrentStage(stats) {
 }
 
 // --- UI COMPONENTS ---
-const Toast = ({ message, show, onDismiss }) => {
+const Toast: React.FC<{
+  message: string;
+  show: boolean;
+  onDismiss: () => void;
+}> = ({ message, show, onDismiss }) => {
   useEffect(() => {
     if (show) {
       const timer = setTimeout(onDismiss, 3000);
       return () => clearTimeout(timer);
     }
   }, [show, onDismiss]);
-
   return show ? (
     <div className="fixed bottom-10 left-1/2 -translate-x-1/2 bg-[var(--color-surface)] text-[var(--color-text)] px-6 py-3 rounded-full shadow-[var(--shadow-soft)] border border-[var(--color-surface-border)] animate-fadeIn">
       {message}
     </div>
   ) : null;
 };
-
-const ProgressionBadge = ({ stage }) => (
+const ProgressionBadge: React.FC<{ stage: ProgressionStage }> = ({ stage }) => (
   <div className="absolute top-6 left-6 flex items-center gap-2 bg-[var(--color-surface)] border border-[var(--color-surface-border)] px-3 py-1.5 rounded-full text-sm animate-fadeIn">
     <span className="text-lg">{stage.icon}</span>
     <span className="font-semibold text-[var(--color-text)]">{stage.name}</span>
   </div>
 );
-
-const LinkAccountPrompt = ({ onLink }) => (
+const LinkAccountPrompt: React.FC<{ onLink: () => void }> = ({ onLink }) => (
   <div className={`${CARD_SURFACE} max-w-none text-center mb-8 animate-fadeIn`}>
     <h3 className="text-xl font-lora font-bold text-[var(--color-text)] mb-2">
       Secure Your Progress
@@ -813,18 +828,13 @@ const LinkAccountPrompt = ({ onLink }) => (
 );
 
 // --- SCREENS ---
-const OnboardingScreen = ({ onFinish }) => {
+const OnboardingScreen: React.FC<{ onFinish: () => void }> = ({ onFinish }) => {
   const [slide, setSlide] = useState(0);
   const content = STRINGS.onboarding;
-
   const handleNext = () => {
-    if (slide < content.length - 1) {
-      setSlide(slide + 1);
-    } else {
-      onFinish();
-    }
+    if (slide < content.length - 1) setSlide(slide + 1);
+    else onFinish();
   };
-
   return (
     <div className="w-full h-full p-6 flex flex-col justify-center items-center text-center animate-fadeIn">
       <div className={`${CARD_SURFACE} flex flex-col items-center`}>
@@ -853,8 +863,7 @@ const OnboardingScreen = ({ onFinish }) => {
     </div>
   );
 };
-
-const LoginScreen = ({ auth }) => {
+const LoginScreen: React.FC<{ auth: any }> = ({ auth }) => {
   const handleLogin = async () => {
     if (!auth) return;
     try {
@@ -877,13 +886,12 @@ const LoginScreen = ({ auth }) => {
     </div>
   );
 };
-
-const MoodSelectionScreen = ({
-  setCurrentScreen,
-  setSelectedMood,
-  auth,
-  currentStage,
-}) => {
+const MoodSelectionScreen: React.FC<{
+  setCurrentScreen: (s: string) => void;
+  setSelectedMood: (s: string) => void;
+  auth: any;
+  currentStage: ProgressionStage;
+}> = ({ setCurrentScreen, setSelectedMood, auth, currentStage }) => {
   const moods = [
     "Anxious",
     "Frustrated",
@@ -894,7 +902,7 @@ const MoodSelectionScreen = ({
     "Detached",
     "Openhearted",
   ];
-  const handleMoodSelect = (mood) => {
+  const handleMoodSelect = (mood: string) => {
     setSelectedMood(mood);
     setCurrentScreen("WhisperReveal");
   };
@@ -937,13 +945,12 @@ const MoodSelectionScreen = ({
     </div>
   );
 };
-
-const WhisperRevealScreen = ({
-  setCurrentScreen,
-  mood,
-  setSelectedWhisper,
-}) => {
-  const [whisper, setWhisper] = useState(null);
+const WhisperRevealScreen: React.FC<{
+  setCurrentScreen: (s: string) => void;
+  mood: string;
+  setSelectedWhisper: (w: Whisper | null) => void;
+}> = ({ setCurrentScreen, mood, setSelectedWhisper }) => {
+  const [whisper, setWhisper] = useState<Whisper | null>(null);
   const [showExpansion, setShowExpansion] = useState(false);
   const loadWhisper = () => {
     setShowExpansion(false);
@@ -951,9 +958,7 @@ const WhisperRevealScreen = ({
     const w = pickNextWhisper(list, mood);
     setWhisper(w);
   };
-  useEffect(() => {
-    loadWhisper();
-  }, [mood]);
+  useEffect(loadWhisper, [mood]);
   const handleJournal = () => {
     setSelectedWhisper(whisper);
     setCurrentScreen("Journaling");
@@ -967,39 +972,34 @@ const WhisperRevealScreen = ({
       <p className="text-[var(--color-text-subtle)] text-lg font-medium mb-4">
         {mood}
       </p>
-      {(() => {
-        if (!whisper)
-          return (
-            <p className="text-lg text-[var(--color-text-muted)] text-center">
-              No whispers for this mood yet.
-            </p>
-          );
-        return (
-          <div className={`${CARD_SURFACE} mb-8 animate-scaleIn`}>
-            <h2 className="text-3xl font-lora font-bold text-[var(--color-text)] text-center mb-5">
-              {whisper.title}
-            </h2>
-            <p className="text-lg text-[var(--color-text-muted)] text-center leading-relaxed mb-5">
-              {whisper.prompt}
-            </p>
-            {whisper.expansion && (
-              <>
-                <button
-                  onClick={() => setShowExpansion(!showExpansion)}
-                  className="w-full text-[var(--color-accent)] font-bold text-center hover:text-[var(--color-text)] transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--color-glow)] rounded"
-                >
-                  {showExpansion ? "Show Less" : "Read More"}
-                </button>
-                {showExpansion && (
-                  <p className="text-base text-[var(--color-text-subtle)] text-center leading-relaxed mt-4 animate-fadeIn">
-                    {whisper.expansion}
-                  </p>
-                )}
-              </>
-            )}
-          </div>
-        );
-      })()}
+      {!whisper ? (
+        <p>Loading whisper...</p>
+      ) : (
+        <div className={`${CARD_SURFACE} mb-8 animate-scaleIn`}>
+          <h2 className="text-3xl font-lora font-bold text-[var(--color-text)] text-center mb-5">
+            {whisper.title}
+          </h2>
+          <p className="text-lg text-[var(--color-text-muted)] text-center leading-relaxed mb-5">
+            {whisper.prompt}
+          </p>
+          {whisper.expansion && (
+            <>
+              {" "}
+              <button
+                onClick={() => setShowExpansion(!showExpansion)}
+                className="w-full text-[var(--color-accent)] font-bold text-center hover:text-[var(--color-text)] transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--color-glow)] rounded"
+              >
+                {showExpansion ? "Show Less" : "Read More"}
+              </button>{" "}
+              {showExpansion && (
+                <p className="text-base text-[var(--color-text-subtle)] text-center leading-relaxed mt-4 animate-fadeIn">
+                  {whisper.expansion}
+                </p>
+              )}{" "}
+            </>
+          )}
+        </div>
+      )}
       <div className="w-full max-w-sm space-y-4">
         <GlowCTA
           onClick={handleJournal}
@@ -1015,15 +1015,14 @@ const WhisperRevealScreen = ({
     </div>
   );
 };
-
-const JournalingScreen = ({
-  setCurrentScreen,
-  whisper,
-  db,
-  user,
-  mood,
-  onSave,
-}) => {
+const JournalingScreen: React.FC<{
+  setCurrentScreen: (s: string) => void;
+  whisper: Whisper;
+  db: any;
+  user: User;
+  mood: string;
+  onSave: () => void;
+}> = ({ setCurrentScreen, whisper, db, user, mood, onSave }) => {
   const [entry, setEntry] = useState("");
   const saveReflection = async () => {
     if (entry.trim() === "" || !user || !whisper) return;
@@ -1070,68 +1069,65 @@ const JournalingScreen = ({
     </div>
   );
 };
-
-const SavedReflectionsScreen = ({
-  reflections,
-  setCurrentScreen,
-  isAnonymous,
-  onLinkAccount,
-}) => {
-  return (
-    <div className="w-full h-full flex flex-col">
-      <h1 className="text-4xl font-lora font-bold text-[var(--color-text)] text-center my-8">
-        Saved Reflections
-      </h1>
-      <div className="flex-grow overflow-y-auto px-6 pb-6">
-        {isAnonymous && <LinkAccountPrompt onLink={onLinkAccount} />}
-        {reflections.length === 0 ? (
-          <div className="flex h-full items-center justify-center">
-            <p className="text-lg text-[var(--color-text-subtle)] text-center">
-              {STRINGS.emptySaved}
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {reflections.map((item) => (
-              <div
-                key={item.id}
-                className="bg-[var(--color-surface)] border border-[var(--color-surface-border)] backdrop-blur-lg rounded-lg p-5 border-l-4 border-[var(--color-accent)] shadow-lg"
-              >
-                <div className="flex justify-between items-center">
-                  <p className="text-sm text-[var(--color-text-subtle)] mb-1">
-                    {item.date}
+const SavedReflectionsScreen: React.FC<{
+  reflections: Reflection[];
+  setCurrentScreen: (s: string) => void;
+  isAnonymous: boolean;
+  onLinkAccount: () => void;
+}> = ({ reflections, setCurrentScreen, isAnonymous, onLinkAccount }) => (
+  <div className="w-full h-full flex flex-col">
+    <h1 className="text-4xl font-lora font-bold text-[var(--color-text)] text-center my-8">
+      Saved Reflections
+    </h1>
+    <div className="flex-grow overflow-y-auto px-6 pb-6">
+      {isAnonymous && <LinkAccountPrompt onLink={onLinkAccount} />}
+      {reflections.length === 0 ? (
+        <div className="flex h-full items-center justify-center">
+          <p className="text-lg text-[var(--color-text-subtle)] text-center">
+            {STRINGS.emptySaved}
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {reflections.map((item) => (
+            <div
+              key={item.id}
+              className="bg-[var(--color-surface)] border border-[var(--color-surface-border)] backdrop-blur-lg rounded-lg p-5 border-l-4 border-[var(--color-accent)] shadow-lg"
+            >
+              <div className="flex justify-between items-center">
+                <p className="text-sm text-[var(--color-text-subtle)] mb-1">
+                  {item.date}
+                </p>
+                {item.whisperType && (
+                  <p className="text-xs text-[var(--color-text-subtle)] bg-[var(--color-surface)] px-2 py-0.5 rounded">
+                    {item.whisperType}
                   </p>
-                  {item.whisperType && (
-                    <p className="text-xs text-[var(--color-text-subtle)] bg-[var(--color-surface)] px-2 py-0.5 rounded">
-                      {item.whisperType}
-                    </p>
-                  )}
-                </div>
-                <h3 className="text-lg font-bold font-lora text-[var(--color-text)] mb-1">
-                  {item.whisperTitle}
-                </h3>
-                <p className="text-base italic text-[var(--color-text-subtle)] mb-3">
-                  "{item.whisperPrompt}"
-                </p>
-                <p className="text-base text-[var(--color-text-muted)] leading-relaxed whitespace-pre-wrap">
-                  {item.entry}
-                </p>
+                )}
               </div>
-            ))}
-          </div>
-        )}
-      </div>
-      <div className="px-6 pb-8 pt-4">
-        <button
-          onClick={() => setCurrentScreen("MoodSelection")}
-          className={`${BTN_SECONDARY} w-full max-w-md mx-auto`}
-        >
-          Back to Moods
-        </button>
-      </div>
+              <h3 className="text-lg font-bold font-lora text-[var(--color-text)] mb-1">
+                {item.whisperTitle}
+              </h3>
+              <p className="text-base italic text-[var(--color-text-subtle)] mb-3">
+                "{item.whisperPrompt}"
+              </p>
+              <p className="text-base text-[var(--color-text-muted)] leading-relaxed whitespace-pre-wrap">
+                {item.entry}
+              </p>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
-  );
-};
+    <div className="px-6 pb-8 pt-4">
+      <button
+        onClick={() => setCurrentScreen("MoodSelection")}
+        className={`${BTN_SECONDARY} w-full max-w-md mx-auto`}
+      >
+        Back to Moods
+      </button>
+    </div>
+  </div>
+);
 
 // --- APP CONTAINER & NAVIGATION ---
 const firebaseConfig = {
@@ -1146,38 +1142,42 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
-
-// THEME: helpers
 const BTN_PRIMARY =
   "w-full bg-[var(--color-accent)] text-[var(--color-accent-ink)] py-4 rounded-full font-bold text-base hover:opacity-90 transition-opacity shadow-lg focus:outline-none focus:ring-2 focus:ring-[var(--color-glow)] glow-cta disabled:opacity-50 disabled:cursor-not-allowed";
 const BTN_SECONDARY =
   "w-full bg-[var(--color-surface)] border border-[var(--color-surface-border)] text-[var(--color-text-subtle)] py-4 rounded-full font-semibold text-base hover:bg-white/15 hover:text-[var(--color-text)] transition-colors shadow-lg focus:outline-none focus:ring-2 focus:ring-[var(--color-glow)] disabled:opacity-50 disabled:cursor-not-allowed";
 const CARD_SURFACE =
   "bg-[var(--color-surface)] border border-[var(--color-surface-border)] backdrop-blur-lg rounded-2xl p-8 w-full max-w-sm shadow-[var(--shadow-soft)]";
-function GlowCTA({ children, className = "", ...props }) {
-  return (
-    <button
-      {...props}
-      className={`${BTN_PRIMARY} animate-[glowPulse_2.8s_ease-in-out_infinite] ${className}`}
-    >
-      {children}
-    </button>
-  );
-}
+const GlowCTA: React.FC<React.ButtonHTMLAttributes<HTMLButtonElement>> = ({
+  children,
+  className = "",
+  ...props
+}) => (
+  <button
+    {...props}
+    className={`${BTN_PRIMARY} animate-[glowPulse_2.8s_ease-in-out_infinite] ${className}`}
+  >
+    {children}
+  </button>
+);
 
 export default function App() {
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState<User | null>(null);
   const [isAuthReady, setIsAuthReady] = useState(false);
   const [currentScreen, setCurrentScreen] = useState("Login");
   const [selectedMood, setSelectedMood] = useState("");
-  const [selectedWhisper, setSelectedWhisper] = useState(null);
-  const [reflections, setReflections] = useState([]);
-  const [currentStage, setCurrentStage] = useState(PROGRESSION_STAGES[0]);
+  const [selectedWhisper, setSelectedWhisper] = useState<Whisper | null>(null);
+  const [reflections, setReflections] = useState<Reflection[]>([]);
+  const [currentStage, setCurrentStage] = useState<ProgressionStage>(
+    PROGRESSION_STAGES[0]
+  );
   const [toast, setToast] = useState({ show: false, message: "" });
   const [hasOnboarded, setHasOnboarded] = useState(
-    () => localStorage.getItem("espiritnu_has_onboarded") === "true"
+    () =>
+      typeof window !== "undefined" &&
+      localStorage.getItem("espiritnu_has_onboarded") === "true"
   );
-  const prevStageId = useRef(currentStage.id);
+  const prevStageId = useRef<string>(currentStage.id);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
@@ -1207,39 +1207,38 @@ export default function App() {
     );
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const reflectionsData = snapshot.docs.map((doc) => ({
-        id: doc.id,
         ...doc.data(),
+        id: doc.id,
         date: doc.data().createdAt?.toDate().toLocaleDateString() || "Just now",
-      }));
+      })) as Reflection[];
       setReflections(reflectionsData);
     });
     return () => unsubscribe();
   }, [user]);
 
   useEffect(() => {
-    const stats = calculateProgressionStats(reflections);
-    const newStage = determineCurrentStage(stats);
-
-    if (newStage && newStage.id !== prevStageId.current) {
-      setCurrentStage(newStage);
-      showToast(
-        STRINGS.toastStageUnlock.replace("${stageName}", newStage.name)
-      );
-      prevStageId.current = newStage.id;
-    } else if (reflections.length === 0) {
+    if (reflections.length > 0) {
+      const stats = calculateProgressionStats(reflections);
+      const newStage = determineCurrentStage(stats);
+      if (newStage && newStage.id !== prevStageId.current) {
+        setCurrentStage(newStage);
+        showToast(
+          STRINGS.toastStageUnlock.replace("${stageName}", newStage.name)
+        );
+        prevStageId.current = newStage.id;
+      }
+    } else {
       setCurrentStage(PROGRESSION_STAGES[0]);
       prevStageId.current = PROGRESSION_STAGES[0].id;
     }
   }, [reflections]);
 
-  const showToast = (message) => setToast({ show: true, message });
-
+  const showToast = (message: string) => setToast({ show: true, message });
   const handleOnboardingFinish = () => {
     localStorage.setItem("espiritnu_has_onboarded", "true");
     setHasOnboarded(true);
-    setCurrentScreen("Login");
+    setCurrentScreen("MoodSelection");
   };
-
   const handleLinkAccount = async () => {
     if (!auth.currentUser) return;
     const provider = new GoogleAuthProvider();
@@ -1258,10 +1257,8 @@ export default function App() {
           Connecting...
         </div>
       );
-
     if (!hasOnboarded && !user)
       return <OnboardingScreen onFinish={handleOnboardingFinish} />;
-
     if (!user) return <LoginScreen auth={auth} />;
 
     switch (currentScreen) {
@@ -1286,7 +1283,7 @@ export default function App() {
         return (
           <JournalingScreen
             setCurrentScreen={setCurrentScreen}
-            whisper={selectedWhisper}
+            whisper={selectedWhisper!}
             db={db}
             user={user}
             mood={selectedMood}
@@ -1322,20 +1319,16 @@ export default function App() {
       <div
         className="pointer-events-none absolute inset-0"
         style={{
-          background: `
-            radial-gradient(900px 700px at 78% 20%, rgba(139,167,45,${
-              0.1 * visualRewards.glowIntensity
-            }), transparent 60%),
-            radial-gradient(700px 600px at 22% 80%, rgba(139,167,45,${
-              0.07 * visualRewards.glowIntensity
-            }), transparent 60%),
-            radial-gradient(1000px 1000px at 50% 50%, rgba(255,255,255,0.04), transparent 70%)
-          `,
+          background: `radial-gradient(900px 700px at 78% 20%, rgba(139,167,45,${
+            0.1 * visualRewards.glowIntensity
+          }), transparent 60%), radial-gradient(700px 600px at 22% 80%, rgba(139,167,45,${
+            0.07 * visualRewards.glowIntensity
+          }), transparent 60%), radial-gradient(1000px 1000px at 50% 50%, rgba(255,255,255,0.04), transparent 70%)`,
         }}
       />
       <FirefliesLayer additionalCount={visualRewards.fireflies} />
       <div className="relative w-full h-full md:w-[400px] md:h-[800px] md:rounded-3xl md:shadow-2xl md:overflow-hidden">
-        <div className="w-full h-full overflow-y-auto">{renderContent()}</div>
+        <div className="w-full h-full overflow-y-auto"> {renderContent()} </div>
         <Toast
           message={toast.message}
           show={toast.show}
