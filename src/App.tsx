@@ -528,7 +528,7 @@ const WHISPERS: Whisper[] = [
     prompt: "What does safety look like for you right now?",
     emotion: "Anxious",
     expansion:
-      "Reassure your nervous system-its okay to feel safe in your body.",
+      "Reassure your nervous system-it's okay to feel safe in your body.",
     randomSeed: 0.575,
   },
   {
@@ -680,6 +680,7 @@ const STRINGS = {
   toastStageUnlock: "${stageName} — a new glow joins your path.",
   toastReflectionSaved: "Reflection saved. Your forest deepens.",
   toastAccountLinked: "Your progress is now secure.",
+  toastBookmark: "Bookmark this page for easy access to your forest!",
   nudgeSoftStreak: "A quiet moment awaits in your forest.",
   releaseAffirmation: "Releasing to welcome a new whisper.",
   emptySaved: "Your saved reflections will appear here as your glow grows.",
@@ -791,15 +792,16 @@ const Toast: React.FC<{
   message: string;
   show: boolean;
   onDismiss: () => void;
-}> = ({ message, show, onDismiss }) => {
+  duration?: number;
+}> = ({ message, show, onDismiss, duration = 3000 }) => {
   useEffect(() => {
     if (show) {
-      const timer = setTimeout(onDismiss, 3000);
+      const timer = setTimeout(onDismiss, duration);
       return () => clearTimeout(timer);
     }
-  }, [show, onDismiss]);
+  }, [show, onDismiss, duration]);
   return show ? (
-    <div className="fixed bottom-10 left-1/2 -translate-x-1/2 bg-[var(--color-surface)] text-[var(--color-text)] px-6 py-3 rounded-full shadow-[var(--shadow-soft)] border border-[var(--color-surface-border)] animate-fadeIn">
+    <div className="fixed bottom-10 left-1/2 -translate-x-1/2 bg-[var(--color-surface)] text-[var(--color-text)] px-6 py-3 rounded-full shadow-[var(--shadow-soft)] border border-[var(--color-surface-border)] animate-fadeIn text-center">
       {message}
     </div>
   ) : null;
@@ -864,11 +866,15 @@ const OnboardingScreen: React.FC<{ onFinish: () => void }> = ({ onFinish }) => {
     </div>
   );
 };
-const LoginScreen: React.FC<{ auth: any }> = ({ auth }) => {
+const LoginScreen: React.FC<{ auth: any; onLogin: () => void }> = ({
+  auth,
+  onLogin,
+}) => {
   const handleLogin = async () => {
     if (!auth) return;
     try {
       await signInAnonymously(auth);
+      onLogin();
     } catch (e) {
       console.error("Login failed", e);
     }
@@ -1172,7 +1178,11 @@ export default function App() {
   const [currentStage, setCurrentStage] = useState<ProgressionStage>(
     PROGRESSION_STAGES[0]
   );
-  const [toast, setToast] = useState({ show: false, message: "" });
+  const [toast, setToast] = useState({
+    show: false,
+    message: "",
+    duration: 3000,
+  });
   const [hasOnboarded, setHasOnboarded] = useState(
     () =>
       typeof window !== "undefined" &&
@@ -1234,7 +1244,19 @@ export default function App() {
     }
   }, [reflections]);
 
-  const showToast = (message: string) => setToast({ show: true, message });
+  const showToast = (message: string, duration = 3000) =>
+    setToast({ show: true, message, duration });
+
+  const handleLogin = () => {
+    const hasVisited = localStorage.getItem("espiritnu_has_visited");
+    if (!hasVisited) {
+      setTimeout(() => {
+        showToast(STRINGS.toastBookmark, 6000);
+        localStorage.setItem("espiritnu_has_visited", "true");
+      }, 1500); // Delay to show after the main screen loads
+    }
+  };
+
   const handleOnboardingFinish = () => {
     localStorage.setItem("espiritnu_has_onboarded", "true");
     setHasOnboarded(true);
@@ -1260,7 +1282,7 @@ export default function App() {
       );
     if (!hasOnboarded && !user)
       return <OnboardingScreen onFinish={handleOnboardingFinish} />;
-    if (!user) return <LoginScreen auth={auth} />;
+    if (!user) return <LoginScreen auth={auth} onLogin={handleLogin} />;
 
     switch (currentScreen) {
       case "MoodSelection":
@@ -1333,7 +1355,10 @@ export default function App() {
         <Toast
           message={toast.message}
           show={toast.show}
-          onDismiss={() => setToast({ show: false, message: "" })}
+          onDismiss={() =>
+            setToast({ show: false, message: "", duration: 3000 })
+          }
+          duration={toast.duration}
         />
       </div>
     </main>
