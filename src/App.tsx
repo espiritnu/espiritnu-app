@@ -20,16 +20,9 @@ import {
   Timestamp,
 } from "firebase/firestore";
 
-// --- TYPE DEFINITIONS ---
-type Firefly = {
-  id: number;
-  left: number;
-  top: number;
-  size: number;
-  duration: number;
-  delay: number;
-  opacity: number;
-};
+// --- FIX: ADDED TYPE DEFINITIONS ---
+// This tells TypeScript the "shape" of our data objects.
+
 type Whisper = {
   id: string;
   whisperType: string;
@@ -39,6 +32,18 @@ type Whisper = {
   expansion: string;
   randomSeed: number;
 };
+
+type Reflection = {
+  id: string;
+  createdAt: Timestamp;
+  whisperTitle: string;
+  whisperPrompt: string;
+  whisperEmotion: string;
+  whisperType: string;
+  entry: string;
+  date?: string; // This property is added later, so it's optional
+};
+
 type ProgressionStage = {
   id: string;
   name: string;
@@ -53,41 +58,77 @@ type ProgressionStage = {
   rewards: {
     badge: string;
     message: string;
-    visual: { fireflies: number; glowIntensity: number };
+    visual: {
+      fireflies: number;
+      glowIntensity: number;
+    };
   };
 };
-type Reflection = {
-  id: string;
-  createdAt: Timestamp;
-  whisperTitle: string;
-  whisperPrompt: string;
-  whisperEmotion: string;
-  whisperType: string | null;
-  entry: string;
-  date?: string;
-};
+
 type Stats = {
   totalReflections: number;
   uniqueMoods: number;
   deepWrites: number;
   longestStreak: number;
 };
+// --- END OF FIX ---
 
-// --- STYLES & ICONS ---
+// THEME: tokens and styles
 const GlobalStyles = () => (
   <style>{`
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Lora:wght@400;700&display=swap');
-    body { font-family: 'Inter', sans-serif; }
-    .font-lora { font-family: 'Lora', serif; }
-    :root{ --color-bg:#212F26; --color-surface:rgba(255,255,255,0.06); --color-surface-border:rgba(255,255,255,0.20); --color-text:#E0EAE3; --color-text-muted:#C0CAC4; --color-text-subtle:#A0A7A3; --color-accent:#76A68A; --color-accent-ink:#212F26; --color-glow:#8BA72D; --shadow-soft:0 10px 30px rgba(0,0,0,0.25); }
-    @keyframes fadeIn { from{opacity:0} to{opacity:1} } .animate-fadeIn{ animation:fadeIn .5s ease-in-out }
-    @keyframes scaleIn { from{opacity:0;transform:scale(.97)} to{opacity:1;transform:scale(1)} } .animate-scaleIn{ animation:scaleIn .5s ease-in-out }
-    @keyframes glowPulse { 0% { box-shadow:0 0 0px var(--color-glow); } 50% { box-shadow:0 0 22px var(--color-glow); } 100% { box-shadow:0 0 0px var(--color-glow); } }
-    @keyframes fireflyFloat { 0% { transform:translate3d(0,0,0) scale(.9); opacity:.0; } 10% { opacity:.85; } 50% { transform:translate3d(20px,-30px,0) scale(1); } 80% { opacity:.6; } 100% { transform:translate3d(-10px,-60px,0) scale(.95); opacity:.0; } }
-    @keyframes fireflyTwinkle { 0%,100% { filter:drop-shadow(0 0 0px var(--color-glow)); } 50% { filter:drop-shadow(0 0 10px var(--color-glow)); } }
-    @media (prefers-reduced-motion: reduce){ .animate-fadeIn,.animate-scaleIn,.glow-cta,.firefly{ animation:none } }
+      @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Lora:wght@400;700&display=swap');
+      body { font-family: 'Inter', sans-serif; }
+      .font-lora { font-family: 'Lora', serif; }
+
+      :root{
+        --color-bg:#212F26;
+        --color-surface:rgba(255,255,255,0.06);
+        --color-surface-border:rgba(255,255,255,0.20);
+        --color-text:#E0EAE3;
+        --color-text-muted:#C0CAC4;
+        --color-text-subtle:#A0A7A3;
+        --color-accent:#76A68A;
+        --color-accent-ink:#212F26;
+        --color-glow:#8BA72D;
+        --shadow-soft:0 10px 30px rgba(0,0,0,0.25);
+      }
+
+      @keyframes fadeIn { from{opacity:0} to{opacity:1} }
+      .animate-fadeIn{ animation:fadeIn .5s ease-in-out }
+
+      @keyframes fadeOut { from{opacity:1} to{opacity:0} }
+      .animate-fadeOut{ animation:fadeOut .5s ease-in-out forwards }
+
+      @keyframes scaleIn { from{opacity:0;transform:scale(.97)} to{opacity:1;transform:scale(1)} }
+      .animate-scaleIn{ animation:scaleIn .5s ease-in-out }
+
+      @keyframes glowPulse {
+        0%   { box-shadow:0 0 0px var(--color-glow); }
+        50%  { box-shadow:0 0 22px var(--color-glow); }
+        100% { box-shadow:0 0 0px var(--color-glow); }
+      }
+
+      @keyframes fireflyFloat {
+        0%   { transform:translate3d(0,0,0) scale(.9);   opacity:.0; }
+        10%  { opacity:.85; }
+        50%  { transform:translate3d(20px,-30px,0) scale(1); }
+        80%  { opacity:.6; }
+        100% { transform:translate3d(-10px,-60px,0) scale(.95); opacity:.0; }
+      }
+      @keyframes fireflyTwinkle {
+        0%,100% { filter:drop-shadow(0 0 0px var(--color-glow)); }
+        50%     { filter:drop-shadow(0 0 10px var(--color-glow)); }
+      }
+
+      @media (prefers-reduced-motion: reduce){
+        .animate-fadeIn,.animate-scaleIn{ animation:none }
+        .glow-cta{ animation:none }
+        .firefly{ animation:none }
+      }
   `}</style>
 );
+
+// --- SVG ICONS ---
 const WriteIcon = () => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
@@ -140,6 +181,23 @@ const LogoutIcon = () => (
     <line x1="21" y1="12" x2="9" y2="12"></line>
   </svg>
 );
+
+const HeartIcon = () => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="28"
+    height="28"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
+  </svg>
+);
+
 const GoogleIcon = () => (
   <svg
     className="mr-2"
@@ -168,23 +226,36 @@ const GoogleIcon = () => (
   </svg>
 );
 
+type FireflyType = {
+  id: number;
+  left: number;
+  top: number;
+  size: number;
+  duration: number;
+  delay: number;
+  opacity: number;
+};
+
 // --- DECORATIVE COMPONENTS ---
 function FirefliesLayer({ baseCount = 12, additionalCount = 0 }) {
-  const [flies, setFlies] = useState<Firefly[]>([]);
+  const [flies, setFlies] = useState<FireflyType[]>([]);
+  const totalCount = baseCount + additionalCount;
+
   useEffect(() => {
-    const arr: Firefly[] = Array.from({
-      length: baseCount + additionalCount,
-    }).map((_, i) => ({
-      id: i,
-      left: Math.random() * 100,
-      top: Math.random() * 100,
-      size: 2 + Math.random() * 3,
-      duration: 6 + Math.random() * 8,
-      delay: Math.random() * (6 + additionalCount / 5),
-      opacity: 0.6 + Math.random() * 0.4,
-    }));
+    const arr: FireflyType[] = Array.from({ length: totalCount }).map(
+      (_, i) => ({
+        id: i,
+        left: Math.random() * 100,
+        top: Math.random() * 100,
+        size: 2 + Math.random() * 3,
+        duration: 6 + Math.random() * 8,
+        delay: Math.random() * (6 + additionalCount / 5),
+        opacity: 0.6 + Math.random() * 0.4,
+      })
+    );
     setFlies(arr);
-  }, [baseCount, additionalCount]);
+  }, [totalCount]);
+
   return (
     <div
       aria-hidden
@@ -219,7 +290,7 @@ function FirefliesLayer({ baseCount = 12, additionalCount = 0 }) {
   );
 }
 
-// --- DATA & LOGIC ---
+// WHISPERS: embedded CSV & PROGRESSION: data
 const WHISPERS: Whisper[] = [
   {
     id: "326",
@@ -528,7 +599,7 @@ const WHISPERS: Whisper[] = [
     prompt: "What does safety look like for you right now?",
     emotion: "Anxious",
     expansion:
-      "Reassure your nervous system-it's okay to feel safe in your body.",
+      "Reassure your nervous system-its okay to feel safe in your body.",
     randomSeed: 0.575,
   },
   {
@@ -680,11 +751,12 @@ const STRINGS = {
   toastStageUnlock: "${stageName} — a new glow joins your path.",
   toastReflectionSaved: "Reflection saved. Your forest deepens.",
   toastAccountLinked: "Your progress is now secure.",
-  toastBookmark: "Bookmark this page for easy access to your forest!",
   nudgeSoftStreak: "A quiet moment awaits in your forest.",
   releaseAffirmation: "Releasing to welcome a new whisper.",
   emptySaved: "Your saved reflections will appear here as your glow grows.",
 };
+
+// WHISPERS & PROGRESSION: Logic
 function getShownSet(mood: string): Set<string> {
   try {
     return new Set(
@@ -697,61 +769,60 @@ function getShownSet(mood: string): Set<string> {
 function addToShownSet(mood: string, id: string) {
   const s = getShownSet(mood);
   s.add(id);
-  localStorage.setItem(
-    `espiritnu_shown_${mood}`,
-    JSON.stringify(Array.from(s))
-  );
+  localStorage.setItem(`espiritnu_shown_${mood}`, JSON.stringify([...s]));
 }
 function resetShownSet(mood: string) {
   localStorage.removeItem(`espiritnu_shown_${mood}`);
 }
 const MOOD_INDEX: Map<string, Whisper[]> = (() => {
-  const map = new Map<string, Whisper[]>();
-  for (const whisper of WHISPERS) {
-    const mood = (whisper.emotion || "").toLowerCase();
-    if (!map.has(mood)) map.set(mood, []);
-    map.get(mood)?.push(whisper);
+  const e = new Map<string, Whisper[]>();
+  for (const t of WHISPERS) {
+    const o = (t.emotion || "").toLowerCase();
+    if (!e.has(o)) e.set(o, []);
+    e.get(o)?.push(t);
   }
-  for (const list of Array.from(map.values())) {
-    list.sort((a: Whisper, b: Whisper) => a.randomSeed - b.randomSeed);
+  for (const t of e.values()) {
+    // AFTER
+    t.sort((e: Whisper, t: Whisper) => e.randomSeed - t.randomSeed);
   }
-  return map;
+  return e;
 })();
 function getWhispersByMood(mood: string): Whisper[] {
   return MOOD_INDEX.get((mood || "").toLowerCase()) || [];
 }
 function pickNextWhisper(list: Whisper[], mood: string): Whisper | null {
-  if (!list || list.length === 0) return null;
-  const shownSet = getShownSet(mood);
-  const available = list.filter((w) => !shownSet.has(w.id));
-  if (available.length === 0) {
+  if (!list || 0 === list.length) return null;
+  const t = getShownSet(mood);
+  const o = list.filter((e) => !t.has(e.id));
+  if (0 === o.length) {
     resetShownSet(mood);
     return list[Math.floor(Math.random() * list.length)];
   }
-  return available[Math.floor(Math.random() * available.length)];
+  const n = Math.floor(Math.random() * o.length);
+  return o[n];
 }
 function calculateProgressionStats(reflections: Reflection[]): Stats {
+  const totalReflections = reflections.length;
+  const uniqueMoods = new Set(reflections.map((r) => r.whisperEmotion)).size;
+  const deepWrites = reflections.filter(
+    (r) => (r.entry || "").length > 180
+  ).length;
   let longestStreak = 0;
   if (reflections.length > 0) {
-    const validReflections = reflections.filter((r: Reflection) => r.createdAt);
-    const uniqueDates = Array.from(
-      new Set(
-        validReflections
-          .map(
-            (r: Reflection) => r.createdAt.toDate().toISOString().split("T")[0]
-          )
-          .sort((a: string, b: string) => a.localeCompare(b))
-      )
-    );
+    const dates = reflections
+      .filter((r) => r.createdAt && typeof r.createdAt.toDate === "function")
+      .map((r) => r.createdAt.toDate())
+      .sort((a, b) => a.getTime() - b.getTime())
+      .map((d) => d.toISOString().split("T")[0]);
+    const uniqueDates = Array.from(new Set(dates));
     if (uniqueDates.length > 0) {
       let currentStreak = 1;
       longestStreak = 1;
       for (let i = 1; i < uniqueDates.length; i++) {
         const d1 = new Date(uniqueDates[i - 1]);
         const d2 = new Date(uniqueDates[i]);
-        const diffDays = Math.round(
-          (d2.getTime() - d1.getTime()) / (1000 * 60 * 60 * 24)
-        );
+        const diffTime = d2.getTime() - d1.getTime();
+        const diffDays = Math.round(diffTime / (1e3 * 60 * 60 * 24));
         if (diffDays === 1) {
           currentStreak++;
         } else {
@@ -763,15 +834,7 @@ function calculateProgressionStats(reflections: Reflection[]): Stats {
       }
     }
   }
-  return {
-    totalReflections: reflections.length,
-    uniqueMoods: new Set(reflections.map((r: Reflection) => r.whisperEmotion))
-      .size,
-    deepWrites: reflections.filter(
-      (r: Reflection) => (r.entry || "").length > 180
-    ).length,
-    longestStreak,
-  };
+  return { totalReflections, uniqueMoods, deepWrites, longestStreak };
 }
 function determineCurrentStage(stats: Stats): ProgressionStage {
   for (let i = PROGRESSION_STAGES.length - 1; i >= 0; i--) {
@@ -788,31 +851,37 @@ function determineCurrentStage(stats: Stats): ProgressionStage {
 }
 
 // --- UI COMPONENTS ---
-const Toast: React.FC<{
+const Toast = ({
+  message,
+  show,
+  onDismiss,
+}: {
   message: string;
   show: boolean;
   onDismiss: () => void;
-  duration?: number;
-}> = ({ message, show, onDismiss, duration = 3000 }) => {
+}) => {
   useEffect(() => {
     if (show) {
-      const timer = setTimeout(onDismiss, duration);
+      const timer = setTimeout(onDismiss, 3000);
       return () => clearTimeout(timer);
     }
-  }, [show, onDismiss, duration]);
+  }, [show, onDismiss]);
+
   return show ? (
-    <div className="fixed bottom-10 left-1/2 -translate-x-1/2 bg-[var(--color-surface)] text-[var(--color-text)] px-6 py-3 rounded-full shadow-[var(--shadow-soft)] border border-[var(--color-surface-border)] animate-fadeIn text-center">
+    <div className="fixed bottom-10 left-1/2 -translate-x-1/2 bg-[var(--color-surface)] text-[var(--color-text)] px-6 py-3 rounded-full shadow-[var(--shadow-soft)] border border-[var(--color-surface-border)] animate-fadeIn">
       {message}
     </div>
   ) : null;
 };
-const ProgressionBadge: React.FC<{ stage: ProgressionStage }> = ({ stage }) => (
+
+const ProgressionBadge = ({ stage }: { stage: ProgressionStage }) => (
   <div className="absolute top-6 left-6 flex items-center gap-2 bg-[var(--color-surface)] border border-[var(--color-surface-border)] px-3 py-1.5 rounded-full text-sm animate-fadeIn">
     <span className="text-lg">{stage.icon}</span>
     <span className="font-semibold text-[var(--color-text)]">{stage.name}</span>
   </div>
 );
-const LinkAccountPrompt: React.FC<{ onLink: () => void }> = ({ onLink }) => (
+
+const LinkAccountPrompt = ({ onLink }: { onLink: () => void }) => (
   <div className={`${CARD_SURFACE} max-w-none text-center mb-8 animate-fadeIn`}>
     <h3 className="text-xl font-lora font-bold text-[var(--color-text)] mb-2">
       Secure Your Progress
@@ -831,13 +900,67 @@ const LinkAccountPrompt: React.FC<{ onLink: () => void }> = ({ onLink }) => (
 );
 
 // --- SCREENS ---
-const OnboardingScreen: React.FC<{ onFinish: () => void }> = ({ onFinish }) => {
+const AboutScreen = ({
+  setCurrentScreen,
+}: {
+  setCurrentScreen: (screen: string) => void;
+}) => {
+  const DONATION_URL = "https://buymeacoffee.com/espiritnu";
+
+  return (
+    <div className="w-full h-full p-6 flex flex-col items-center justify-center text-center animate-fadeIn">
+      <div className={`${CARD_SURFACE} relative`}>
+        <h2 className="text-3xl font-lora font-bold text-[var(--color-text)] mb-6">
+          About Espiritnu
+        </h2>
+
+        <p className="text-base text-[var(--color-text-muted)] leading-relaxed mb-4">
+          Hi, I'm Emilie. I created Espiritnu from a simple belief: in a world
+          that’s always asking for our attention, we all deserve a quiet space
+          to simply be with our emotions.
+        </p>
+
+        <p className="text-base text-[var(--color-text-muted)] leading-relaxed mb-8">
+          As a one-person project, my promise is to keep this a true
+          sanctuary—always ad-free, private, and calm. If you find a moment of
+          peace here, your support helps cover the costs to keep this space
+          running and allows its journey to continue.
+        </p>
+
+        <a
+          href={DONATION_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={`${BTN_PRIMARY} flex items-center justify-center`}
+        >
+          ☕ Buy Me a Coffee
+        </a>
+      </div>
+
+      <div className="mt-8 w-full max-w-sm">
+        <button
+          onClick={() => setCurrentScreen("MoodSelection")}
+          className={BTN_SECONDARY}
+        >
+          Back to Moods
+        </button>
+      </div>
+    </div>
+  );
+};
+
+const OnboardingScreen = ({ onFinish }: { onFinish: () => void }) => {
   const [slide, setSlide] = useState(0);
   const content = STRINGS.onboarding;
+
   const handleNext = () => {
-    if (slide < content.length - 1) setSlide(slide + 1);
-    else onFinish();
+    if (slide < content.length - 1) {
+      setSlide(slide + 1);
+    } else {
+      onFinish();
+    }
   };
+
   return (
     <div className="w-full h-full p-6 flex flex-col justify-center items-center text-center animate-fadeIn">
       <div className={`${CARD_SURFACE} flex flex-col items-center`}>
@@ -866,15 +989,12 @@ const OnboardingScreen: React.FC<{ onFinish: () => void }> = ({ onFinish }) => {
     </div>
   );
 };
-const LoginScreen: React.FC<{ auth: any; onLogin: () => void }> = ({
-  auth,
-  onLogin,
-}) => {
+
+const LoginScreen = ({ auth }: { auth: any }) => {
   const handleLogin = async () => {
     if (!auth) return;
     try {
       await signInAnonymously(auth);
-      onLogin();
     } catch (e) {
       console.error("Login failed", e);
     }
@@ -893,12 +1013,18 @@ const LoginScreen: React.FC<{ auth: any; onLogin: () => void }> = ({
     </div>
   );
 };
-const MoodSelectionScreen: React.FC<{
-  setCurrentScreen: (s: string) => void;
-  setSelectedMood: (s: string) => void;
+
+const MoodSelectionScreen = ({
+  setCurrentScreen,
+  setSelectedMood,
+  auth,
+  currentStage,
+}: {
+  setCurrentScreen: (screen: string) => void;
+  setSelectedMood: (mood: string) => void;
   auth: any;
   currentStage: ProgressionStage;
-}> = ({ setCurrentScreen, setSelectedMood, auth, currentStage }) => {
+}) => {
   const moods = [
     "Anxious",
     "Frustrated",
@@ -916,6 +1042,15 @@ const MoodSelectionScreen: React.FC<{
   return (
     <div className="w-full h-full p-6 flex flex-col items-center animate-fadeIn">
       <ProgressionBadge stage={currentStage} />
+
+      <button
+        onClick={() => setCurrentScreen("About")}
+        className="absolute top-6 right-6 text-[var(--color-text-subtle)] hover:text-[var(--color-text)] transition-colors"
+        aria-label="About Espiritnu"
+      >
+        <HeartIcon />
+      </button>
+
       <div className="flex-grow flex flex-col justify-center items-center">
         <h1 className="text-4xl font-lora font-bold text-[var(--color-text)] text-center mb-2">
           Espiritnu
@@ -952,11 +1087,16 @@ const MoodSelectionScreen: React.FC<{
     </div>
   );
 };
-const WhisperRevealScreen: React.FC<{
-  setCurrentScreen: (s: string) => void;
+
+const WhisperRevealScreen = ({
+  setCurrentScreen,
+  mood,
+  setSelectedWhisper,
+}: {
+  setCurrentScreen: (screen: string) => void;
   mood: string;
-  setSelectedWhisper: (w: Whisper | null) => void;
-}> = ({ setCurrentScreen, mood, setSelectedWhisper }) => {
+  setSelectedWhisper: (whisper: Whisper | null) => void;
+}) => {
   const [whisper, setWhisper] = useState<Whisper | null>(null);
   const [showExpansion, setShowExpansion] = useState(false);
   const loadWhisper = () => {
@@ -965,7 +1105,9 @@ const WhisperRevealScreen: React.FC<{
     const w = pickNextWhisper(list, mood);
     setWhisper(w);
   };
-  useEffect(loadWhisper, [mood]);
+  useEffect(() => {
+    loadWhisper();
+  }, [mood]);
   const handleJournal = () => {
     setSelectedWhisper(whisper);
     setCurrentScreen("Journaling");
@@ -979,34 +1121,39 @@ const WhisperRevealScreen: React.FC<{
       <p className="text-[var(--color-text-subtle)] text-lg font-medium mb-4">
         {mood}
       </p>
-      {!whisper ? (
-        <p>Loading whisper...</p>
-      ) : (
-        <div className={`${CARD_SURFACE} mb-8 animate-scaleIn`}>
-          <h2 className="text-3xl font-lora font-bold text-[var(--color-text)] text-center mb-5">
-            {whisper.title}
-          </h2>
-          <p className="text-lg text-[var(--color-text-muted)] text-center leading-relaxed mb-5">
-            {whisper.prompt}
-          </p>
-          {whisper.expansion && (
-            <>
-              {" "}
-              <button
-                onClick={() => setShowExpansion(!showExpansion)}
-                className="w-full text-[var(--color-accent)] font-bold text-center hover:text-[var(--color-text)] transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--color-glow)] rounded"
-              >
-                {showExpansion ? "Show Less" : "Read More"}
-              </button>{" "}
-              {showExpansion && (
-                <p className="text-base text-[var(--color-text-subtle)] text-center leading-relaxed mt-4 animate-fadeIn">
-                  {whisper.expansion}
-                </p>
-              )}{" "}
-            </>
-          )}
-        </div>
-      )}
+      {(() => {
+        if (!whisper)
+          return (
+            <p className="text-lg text-[var(--color-text-muted)] text-center">
+              No whispers for this mood yet.
+            </p>
+          );
+        return (
+          <div className={`${CARD_SURFACE} mb-8 animate-scaleIn`}>
+            <h2 className="text-3xl font-lora font-bold text-[var(--color-text)] text-center mb-5">
+              {whisper.title}
+            </h2>
+            <p className="text-lg text-[var(--color-text-muted)] text-center leading-relaxed mb-5">
+              {whisper.prompt}
+            </p>
+            {whisper.expansion && (
+              <>
+                <button
+                  onClick={() => setShowExpansion(!showExpansion)}
+                  className="w-full text-[var(--color-accent)] font-bold text-center hover:text-[var(--color-text)] transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--color-glow)] rounded"
+                >
+                  {showExpansion ? "Show Less" : "Read More"}
+                </button>
+                {showExpansion && (
+                  <p className="text-base text-[var(--color-text-subtle)] text-center leading-relaxed mt-4 animate-fadeIn">
+                    {whisper.expansion}
+                  </p>
+                )}
+              </>
+            )}
+          </div>
+        );
+      })()}
       <div className="w-full max-w-sm space-y-4">
         <GlowCTA
           onClick={handleJournal}
@@ -1022,14 +1169,22 @@ const WhisperRevealScreen: React.FC<{
     </div>
   );
 };
-const JournalingScreen: React.FC<{
-  setCurrentScreen: (s: string) => void;
-  whisper: Whisper;
+
+const JournalingScreen = ({
+  setCurrentScreen,
+  whisper,
+  db,
+  user,
+  mood,
+  onSave,
+}: {
+  setCurrentScreen: (screen: string) => void;
+  whisper: Whisper | null;
   db: any;
-  user: User;
+  user: User | null;
   mood: string;
   onSave: () => void;
-}> = ({ setCurrentScreen, whisper, db, user, mood, onSave }) => {
+}) => {
   const [entry, setEntry] = useState("");
   const saveReflection = async () => {
     if (entry.trim() === "" || !user || !whisper) return;
@@ -1051,10 +1206,10 @@ const JournalingScreen: React.FC<{
   return (
     <div className="w-full h-full p-6 flex flex-col items-center animate-fadeIn">
       <h2 className="text-2xl font-lora text-[var(--color-text)] text-center mb-2">
-        Reflection on "{whisper.title}"
+        Reflection on "{whisper?.title}"
       </h2>
       <p className="text-base text-[var(--color-text-subtle)] text-center mb-6">
-        {whisper.prompt}
+        {whisper?.prompt}
       </p>
       <textarea
         className="w-full max-w-md h-72 bg-[var(--color-surface)] border border-[var(--color-surface-border)] backdrop-blur-lg rounded-2xl p-5 text-[var(--color-text)] text-base focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)] mb-8 shadow-lg"
@@ -1076,65 +1231,73 @@ const JournalingScreen: React.FC<{
     </div>
   );
 };
-const SavedReflectionsScreen: React.FC<{
+
+const SavedReflectionsScreen = ({
+  reflections,
+  setCurrentScreen,
+  isAnonymous,
+  onLinkAccount,
+}: {
   reflections: Reflection[];
-  setCurrentScreen: (s: string) => void;
+  setCurrentScreen: (screen: string) => void;
   isAnonymous: boolean;
   onLinkAccount: () => void;
-}> = ({ reflections, setCurrentScreen, isAnonymous, onLinkAccount }) => (
-  <div className="w-full h-full flex flex-col">
-    <h1 className="text-4xl font-lora font-bold text-[var(--color-text)] text-center my-8">
-      Saved Reflections
-    </h1>
-    <div className="flex-grow overflow-y-auto px-6 pb-6">
-      {isAnonymous && <LinkAccountPrompt onLink={onLinkAccount} />}
-      {reflections.length === 0 ? (
-        <div className="flex h-full items-center justify-center">
-          <p className="text-lg text-[var(--color-text-subtle)] text-center">
-            {STRINGS.emptySaved}
-          </p>
-        </div>
-      ) : (
-        <div className="space-y-4">
-          {reflections.map((item) => (
-            <div
-              key={item.id}
-              className="bg-[var(--color-surface)] border border-[var(--color-surface-border)] backdrop-blur-lg rounded-lg p-5 border-l-4 border-[var(--color-accent)] shadow-lg"
-            >
-              <div className="flex justify-between items-center">
-                <p className="text-sm text-[var(--color-text-subtle)] mb-1">
-                  {item.date}
-                </p>
-                {item.whisperType && (
-                  <p className="text-xs text-[var(--color-text-subtle)] bg-[var(--color-surface)] px-2 py-0.5 rounded">
-                    {item.whisperType}
+}) => {
+  return (
+    <div className="w-full h-full flex flex-col">
+      <h1 className="text-4xl font-lora font-bold text-[var(--color-text)] text-center my-8">
+        Saved Reflections
+      </h1>
+      <div className="flex-grow overflow-y-auto px-6 pb-6">
+        {isAnonymous && <LinkAccountPrompt onLink={onLinkAccount} />}
+        {reflections.length === 0 ? (
+          <div className="flex h-full items-center justify-center">
+            <p className="text-lg text-[var(--color-text-subtle)] text-center">
+              {STRINGS.emptySaved}
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {reflections.map((item) => (
+              <div
+                key={item.id}
+                className="bg-[var(--color-surface)] border border-[var(--color-surface-border)] backdrop-blur-lg rounded-lg p-5 border-l-4 border-[var(--color-accent)] shadow-lg"
+              >
+                <div className="flex justify-between items-center">
+                  <p className="text-sm text-[var(--color-text-subtle)] mb-1">
+                    {item.date}
                   </p>
-                )}
+                  {item.whisperType && (
+                    <p className="text-xs text-[var(--color-text-subtle)] bg-[var(--color-surface)] px-2 py-0.5 rounded">
+                      {item.whisperType}
+                    </p>
+                  )}
+                </div>
+                <h3 className="text-lg font-bold font-lora text-[var(--color-text)] mb-1">
+                  {item.whisperTitle}
+                </h3>
+                <p className="text-base italic text-[var(--color-text-subtle)] mb-3">
+                  "{item.whisperPrompt}"
+                </p>
+                <p className="text-base text-[var(--color-text-muted)] leading-relaxed whitespace-pre-wrap">
+                  {item.entry}
+                </p>
               </div>
-              <h3 className="text-lg font-bold font-lora text-[var(--color-text)] mb-1">
-                {item.whisperTitle}
-              </h3>
-              <p className="text-base italic text-[var(--color-text-subtle)] mb-3">
-                "{item.whisperPrompt}"
-              </p>
-              <p className="text-base text-[var(--color-text-muted)] leading-relaxed whitespace-pre-wrap">
-                {item.entry}
-              </p>
-            </div>
-          ))}
-        </div>
-      )}
+            ))}
+          </div>
+        )}
+      </div>
+      <div className="px-6 pb-8 pt-4">
+        <button
+          onClick={() => setCurrentScreen("MoodSelection")}
+          className={`${BTN_SECONDARY} w-full max-w-md mx-auto`}
+        >
+          Back to Moods
+        </button>
+      </div>
     </div>
-    <div className="px-6 pb-8 pt-4">
-      <button
-        onClick={() => setCurrentScreen("MoodSelection")}
-        className={`${BTN_SECONDARY} w-full max-w-md mx-auto`}
-      >
-        Back to Moods
-      </button>
-    </div>
-  </div>
-);
+  );
+};
 
 // --- APP CONTAINER & NAVIGATION ---
 const firebaseConfig = {
@@ -1149,24 +1312,32 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
+
+// THEME: helpers
 const BTN_PRIMARY =
   "w-full bg-[var(--color-accent)] text-[var(--color-accent-ink)] py-4 rounded-full font-bold text-base hover:opacity-90 transition-opacity shadow-lg focus:outline-none focus:ring-2 focus:ring-[var(--color-glow)] glow-cta disabled:opacity-50 disabled:cursor-not-allowed";
 const BTN_SECONDARY =
   "w-full bg-[var(--color-surface)] border border-[var(--color-surface-border)] text-[var(--color-text-subtle)] py-4 rounded-full font-semibold text-base hover:bg-white/15 hover:text-[var(--color-text)] transition-colors shadow-lg focus:outline-none focus:ring-2 focus:ring-[var(--color-glow)] disabled:opacity-50 disabled:cursor-not-allowed";
 const CARD_SURFACE =
   "bg-[var(--color-surface)] border border-[var(--color-surface-border)] backdrop-blur-lg rounded-2xl p-8 w-full max-w-sm shadow-[var(--shadow-soft)]";
-const GlowCTA: React.FC<React.ButtonHTMLAttributes<HTMLButtonElement>> = ({
+function GlowCTA({
   children,
   className = "",
   ...props
-}) => (
-  <button
-    {...props}
-    className={`${BTN_PRIMARY} animate-[glowPulse_2.8s_ease-in-out_infinite] ${className}`}
-  >
-    {children}
-  </button>
-);
+}: {
+  children: React.ReactNode;
+  className?: string;
+  [key: string]: any;
+}) {
+  return (
+    <button
+      {...props}
+      className={`${BTN_PRIMARY} animate-[glowPulse_2.8s_ease-in-out_infinite] ${className}`}
+    >
+      {children}
+    </button>
+  );
+}
 
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
@@ -1178,17 +1349,11 @@ export default function App() {
   const [currentStage, setCurrentStage] = useState<ProgressionStage>(
     PROGRESSION_STAGES[0]
   );
-  const [toast, setToast] = useState({
-    show: false,
-    message: "",
-    duration: 3000,
-  });
+  const [toast, setToast] = useState({ show: false, message: "" });
   const [hasOnboarded, setHasOnboarded] = useState(
-    () =>
-      typeof window !== "undefined" &&
-      localStorage.getItem("espiritnu_has_onboarded") === "true"
+    () => localStorage.getItem("espiritnu_has_onboarded") === "true"
   );
-  const prevStageId = useRef<string>(currentStage.id);
+  const prevStageId = useRef(currentStage.id);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
@@ -1217,51 +1382,43 @@ export default function App() {
       orderBy("createdAt", "desc")
     );
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const reflectionsData = snapshot.docs.map((doc) => ({
-        ...doc.data(),
-        id: doc.id,
-        date: doc.data().createdAt?.toDate().toLocaleDateString() || "Just now",
-      })) as Reflection[];
+      const reflectionsData = snapshot.docs.map((doc) => {
+        const data = doc.data() as Reflection;
+        return {
+          ...data,
+          id: doc.id,
+          date: data.createdAt?.toDate().toLocaleDateString() || "Just now",
+        };
+      });
       setReflections(reflectionsData);
     });
     return () => unsubscribe();
   }, [user]);
 
   useEffect(() => {
-    if (reflections.length > 0) {
-      const stats = calculateProgressionStats(reflections);
-      const newStage = determineCurrentStage(stats);
-      if (newStage && newStage.id !== prevStageId.current) {
-        setCurrentStage(newStage);
-        showToast(
-          STRINGS.toastStageUnlock.replace("${stageName}", newStage.name)
-        );
-        prevStageId.current = newStage.id;
-      }
-    } else {
+    const stats = calculateProgressionStats(reflections);
+    const newStage = determineCurrentStage(stats);
+
+    if (newStage && newStage.id !== prevStageId.current) {
+      setCurrentStage(newStage);
+      showToast(
+        STRINGS.toastStageUnlock.replace("${stageName}", newStage.name)
+      );
+      prevStageId.current = newStage.id;
+    } else if (reflections.length === 0) {
       setCurrentStage(PROGRESSION_STAGES[0]);
       prevStageId.current = PROGRESSION_STAGES[0].id;
     }
   }, [reflections]);
 
-  const showToast = (message: string, duration = 3000) =>
-    setToast({ show: true, message, duration });
-
-  const handleLogin = () => {
-    const hasVisited = localStorage.getItem("espiritnu_has_visited");
-    if (!hasVisited) {
-      setTimeout(() => {
-        showToast(STRINGS.toastBookmark, 6000);
-        localStorage.setItem("espiritnu_has_visited", "true");
-      }, 1500); // Delay to show after the main screen loads
-    }
-  };
+  const showToast = (message: string) => setToast({ show: true, message });
 
   const handleOnboardingFinish = () => {
     localStorage.setItem("espiritnu_has_onboarded", "true");
     setHasOnboarded(true);
-    setCurrentScreen("MoodSelection");
+    setCurrentScreen("Login");
   };
+
   const handleLinkAccount = async () => {
     if (!auth.currentUser) return;
     const provider = new GoogleAuthProvider();
@@ -1280,11 +1437,16 @@ export default function App() {
           Connecting...
         </div>
       );
+
     if (!hasOnboarded && !user)
       return <OnboardingScreen onFinish={handleOnboardingFinish} />;
-    if (!user) return <LoginScreen auth={auth} onLogin={handleLogin} />;
+
+    if (!user) return <LoginScreen auth={auth} />;
 
     switch (currentScreen) {
+      case "About":
+        return <AboutScreen setCurrentScreen={setCurrentScreen} />;
+
       case "MoodSelection":
         return (
           <MoodSelectionScreen
@@ -1306,7 +1468,7 @@ export default function App() {
         return (
           <JournalingScreen
             setCurrentScreen={setCurrentScreen}
-            whisper={selectedWhisper!}
+            whisper={selectedWhisper}
             db={db}
             user={user}
             mood={selectedMood}
@@ -1342,23 +1504,24 @@ export default function App() {
       <div
         className="pointer-events-none absolute inset-0"
         style={{
-          background: `radial-gradient(900px 700px at 78% 20%, rgba(139,167,45,${
-            0.1 * visualRewards.glowIntensity
-          }), transparent 60%), radial-gradient(700px 600px at 22% 80%, rgba(139,167,45,${
-            0.07 * visualRewards.glowIntensity
-          }), transparent 60%), radial-gradient(1000px 1000px at 50% 50%, rgba(255,255,255,0.04), transparent 70%)`,
+          background: `
+            radial-gradient(900px 700px at 78% 20%, rgba(139,167,45,${
+              0.1 * visualRewards.glowIntensity
+            }), transparent 60%),
+            radial-gradient(700px 600px at 22% 80%, rgba(139,167,45,${
+              0.07 * visualRewards.glowIntensity
+            }), transparent 60%),
+            radial-gradient(1000px 1000px at 50% 50%, rgba(255,255,255,0.04), transparent 70%)
+          `,
         }}
       />
       <FirefliesLayer additionalCount={visualRewards.fireflies} />
       <div className="relative w-full h-full md:w-[400px] md:h-[800px] md:rounded-3xl md:shadow-2xl md:overflow-hidden">
-        <div className="w-full h-full overflow-y-auto"> {renderContent()} </div>
+        <div className="w-full h-full overflow-y-auto">{renderContent()}</div>
         <Toast
           message={toast.message}
           show={toast.show}
-          onDismiss={() =>
-            setToast({ show: false, message: "", duration: 3000 })
-          }
-          duration={toast.duration}
+          onDismiss={() => setToast({ show: false, message: "" })}
         />
       </div>
     </main>
