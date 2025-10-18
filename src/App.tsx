@@ -1340,7 +1340,7 @@ const FeedbackModal = ({
           ))}
         </div>
         <a
-          href="mailto:your-feedback-email@example.com?subject=Espiritnu App Feedback"
+          href="mailto:espiritnu@gmail.com?subject=Espiritnu App Feedback"
           className={BTN_PRIMARY}
         >
           Report an Issue
