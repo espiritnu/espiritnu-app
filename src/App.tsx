@@ -1208,8 +1208,26 @@ const JournalingScreen = ({
   onSave: () => void;
 }) => {
   const [entry, setEntry] = useState("");
+  const [deeperAnswers, setDeeperAnswers] = useState<string[]>([]);
+  const [currentDeeperQuestion, setCurrentDeeperQuestion] = useState(-1);
+  const DEEPER_QUESTIONS = [
+    "Where do you feel this emotion in your body?",
+    "What's one word you would use to label this feeling?",
+    "What thought or story is attached to this feeling?",
+  ];
+  const handleDeeperAnswerChange = (index: number, value: string) => {
+    const newAnswers = [...deeperAnswers];
+    newAnswers[index] = value;
+    setDeeperAnswers(newAnswers);
+  };
   const saveReflection = async () => {
     if (entry.trim() === "" || !user || !whisper) return;
+    let finalEntry = entry;
+    deeperAnswers.forEach((answer, index) => {
+      if (answer && answer.trim() !== "") {
+        finalEntry += `\n\n— ${DEEPER_QUESTIONS[index]} —\n${answer}`;
+      }
+    });
     try {
       await addDoc(collection(db, "users", user.uid, "reflections"), {
         createdAt: serverTimestamp(),
@@ -1217,7 +1235,7 @@ const JournalingScreen = ({
         whisperPrompt: whisper.prompt,
         whisperEmotion: whisper.emotion || mood,
         whisperType: whisper.whisperType || null,
-        entry: entry,
+        entry: finalEntry,
       });
       onSave();
       setCurrentScreen("SavedReflections");
@@ -1234,11 +1252,47 @@ const JournalingScreen = ({
         {whisper?.prompt}
       </p>
       <textarea
-        className="w-full max-w-md h-72 bg-[var(--color-surface)] border border-[var(--color-surface-border)] backdrop-blur-lg rounded-2xl p-5 text-[var(--color-text)] text-base focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)] mb-8 shadow-lg"
+        className="w-full max-w-md h-60 bg-[var(--color-surface)] border border-[var(--color-surface-border)] backdrop-blur-lg rounded-2xl p-5 text-[var(--color-text)] text-base focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)] mb-4 shadow-lg"
         placeholder="Let your thoughts flow here..."
         value={entry}
         onChange={(e) => setEntry(e.target.value)}
       />
+      {entry.length > 20 && currentDeeperQuestion === -1 && (
+        <button
+          onClick={() => setCurrentDeeperQuestion(0)}
+          className="text-sm text-[var(--color-accent)] font-semibold mb-4 animate-fadeIn"
+        >
+          Explore this feeling further →
+        </button>
+      )}
+      {currentDeeperQuestion > -1 &&
+        DEEPER_QUESTIONS.map(
+          (q, index) =>
+            index <= currentDeeperQuestion && (
+              <div key={index} className="w-full max-w-md animate-fadeIn mb-4">
+                <label className="block text-base text-[var(--color-text-muted)] mb-2">
+                  {q}
+                </label>
+                <textarea
+                  rows={2}
+                  className="w-full bg-[var(--color-surface)] border border-[var(--color-surface-border)] rounded-lg p-3 text-base text-[var(--color-text)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]"
+                  value={deeperAnswers[index] || ""}
+                  onChange={(e) =>
+                    handleDeeperAnswerChange(index, e.target.value)
+                  }
+                />
+                {index === currentDeeperQuestion &&
+                  currentDeeperQuestion < DEEPER_QUESTIONS.length - 1 && (
+                    <button
+                      onClick={() => setCurrentDeeperQuestion(index + 1)}
+                      className="text-sm text-[var(--color-accent)] font-semibold mt-2"
+                    >
+                      Next →
+                    </button>
+                  )}
+              </div>
+            )
+        )}
       <div className="w-full max-w-md space-y-4">
         <button onClick={saveReflection} className={`${BTN_PRIMARY} max-w-md`}>
           Save Reflection
