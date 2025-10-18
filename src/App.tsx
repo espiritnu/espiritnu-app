@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { initializeApp } from "firebase/app";
 import {
   getAuth,
-  signInAnonymously, // Add this line back
+  signInAnonymously,
   onAuthStateChanged,
   signOut,
   GoogleAuthProvider,
@@ -183,6 +183,23 @@ const GoogleIcon = () => (
       d="M12 5.48C13.48 5.48 14.77 5.99 15.82 6.98L19.57 3.23C17.45 1.23 14.97 0 12 0C7.83 0 4.26 2.23 2.27 5.66L6.4 8.52C7.23 6.19 9.43 4.48 12 4.48V5.48Z"
       fill="#EA4335"
     />
+  </svg>
+);
+const QuestionMarkIcon = () => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="28"
+    height="28"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <circle cx="12" cy="12" r="10"></circle>
+    <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+    <line x1="12" y1="17" x2="12.01" y2="17"></line>
   </svg>
 );
 
@@ -806,6 +823,13 @@ function determineCurrentStage(stats: Stats): ProgressionStage {
 }
 
 // --- UI COMPONENTS ---
+const BTN_PRIMARY =
+  "w-full bg-[var(--color-accent)] text-[var(--color-accent-ink)] py-4 rounded-full font-bold text-base hover:opacity-90 transition-opacity shadow-lg focus:outline-none focus:ring-2 focus:ring-[var(--color-glow)] glow-cta disabled:opacity-50 disabled:cursor-not-allowed";
+const BTN_SECONDARY =
+  "w-full bg-[var(--color-surface)] border border-[var(--color-surface-border)] text-[var(--color-text-subtle)] py-4 rounded-full font-semibold text-base hover:bg-white/15 hover:text-[var(--color-text)] transition-colors shadow-lg focus:outline-none focus:ring-2 focus:ring-[var(--color-glow)] disabled:opacity-50 disabled:cursor-not-allowed";
+const CARD_SURFACE =
+  "bg-[var(--color-surface)] border border-[var(--color-surface-border)] backdrop-blur-lg rounded-2xl p-8 w-full max-w-sm shadow-[var(--shadow-soft)]";
+
 const Toast = ({
   message,
   show,
@@ -850,8 +874,26 @@ const LinkAccountPrompt = ({ onLink }: { onLink: () => void }) => (
     </button>
   </div>
 );
+function GlowCTA({
+  children,
+  className = "",
+  ...props
+}: {
+  children: React.ReactNode;
+  className?: string;
+  [key: string]: any;
+}) {
+  return (
+    <button
+      {...props}
+      className={`${BTN_PRIMARY} animate-[glowPulse_2.8s_ease-in-out_infinite] ${className}`}
+    >
+      {children}
+    </button>
+  );
+}
 
-// --- SCREENS ---
+// --- SCREENS & MODALS ---
 const AboutScreen = ({
   setCurrentScreen,
 }: {
@@ -933,8 +975,6 @@ const OnboardingScreen = ({ onFinish }: { onFinish: () => void }) => {
     </div>
   );
 };
-
-// *** REVERTED: LoginScreen now uses signInAnonymously ***
 const LoginScreen = ({ auth }: { auth: any }) => {
   const handleLogin = async () => {
     if (!auth) return;
@@ -958,17 +998,18 @@ const LoginScreen = ({ auth }: { auth: any }) => {
     </div>
   );
 };
-
 const MoodSelectionScreen = ({
   setCurrentScreen,
   setSelectedMood,
   auth,
   currentStage,
+  onOpenFeedbackModal,
 }: {
   setCurrentScreen: (screen: string) => void;
   setSelectedMood: (mood: string) => void;
   auth: any;
   currentStage: ProgressionStage;
+  onOpenFeedbackModal: () => void;
 }) => {
   const moods = [
     "Anxious",
@@ -987,13 +1028,22 @@ const MoodSelectionScreen = ({
   return (
     <div className="w-full h-full p-6 flex flex-col items-center animate-fadeIn">
       <ProgressionBadge stage={currentStage} />
-      <button
-        onClick={() => setCurrentScreen("About")}
-        className="absolute top-6 right-6 text-[var(--color-text-subtle)] hover:text-[var(--color-text)] transition-colors"
-        aria-label="About Espiritnu"
-      >
-        <HeartIcon />
-      </button>
+      <div className="absolute top-6 right-6 flex items-center gap-4">
+        <button
+          onClick={onOpenFeedbackModal}
+          className="text-[var(--color-text-subtle)] hover:text-[var(--color-text)] transition-colors"
+          aria-label="Help and Updates"
+        >
+          <QuestionMarkIcon />
+        </button>
+        <button
+          onClick={() => setCurrentScreen("About")}
+          className="text-[var(--color-text-subtle)] hover:text-[var(--color-text)] transition-colors"
+          aria-label="About Espiritnu"
+        >
+          <HeartIcon />
+        </button>
+      </div>
       <div className="flex-grow flex flex-col justify-center items-center">
         <h1 className="text-4xl font-lora font-bold text-[var(--color-text)] text-center mb-2">
           Espiritnu
@@ -1172,8 +1222,6 @@ const JournalingScreen = ({
     </div>
   );
 };
-
-// *** CHANGED: Temporarily removing the account link prompt ***
 const SavedReflectionsScreen = ({
   reflections,
   setCurrentScreen,
@@ -1191,9 +1239,7 @@ const SavedReflectionsScreen = ({
         Saved Reflections
       </h1>
       <div className="flex-grow overflow-y-auto px-6 pb-6">
-        {/* The Google Sign-In prompt is temporarily disabled to ensure stability. */}
-        {/* {isAnonymous && <LinkAccountPrompt onLink={onLinkAccount} />} */}
-
+        {isAnonymous && <LinkAccountPrompt onLink={onLinkAccount} />}
         {reflections.length === 0 ? (
           <div className="flex h-full items-center justify-center">
             <p className="text-lg text-[var(--color-text-subtle)] text-center">
@@ -1242,12 +1288,73 @@ const SavedReflectionsScreen = ({
     </div>
   );
 };
+const FeedbackModal = ({
+  show,
+  onClose,
+}: {
+  show: boolean;
+  onClose: () => void;
+}) => {
+  if (!show) {
+    return null;
+  }
+  const updates = [
+    {
+      date: "October 18, 2025",
+      text: "App is stable with anonymous sign-in. We are planning future updates!",
+    },
+    {
+      date: "October 17, 2025",
+      text: "New whispers for the 'Hopeful' category have been added.",
+    },
+  ];
+  return (
+    <div
+      className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-6 animate-fadeIn"
+      onClick={onClose}
+    >
+      <div
+        className={`${CARD_SURFACE} relative w-full max-w-sm`}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 text-[var(--color-text-subtle)] hover:text-[var(--color-text)]"
+          aria-label="Close"
+        >
+          ✕
+        </button>
+        <h2 className="text-2xl font-lora font-bold text-[var(--color-text)] text-center mb-6">
+          Updates & Feedback
+        </h2>
+        <div className="space-y-4 mb-8">
+          {updates.map((update, index) => (
+            <div key={index} className="text-left">
+              <p className="text-sm font-semibold text-[var(--color-text-muted)]">
+                {update.date}
+              </p>
+              <p className="text-base text-[var(--color-text)]">
+                {update.text}
+              </p>
+            </div>
+          ))}
+        </div>
+        <a
+          href="mailto:your-feedback-email@example.com?subject=Espiritnu App Feedback"
+          className={BTN_PRIMARY}
+        >
+          Report an Issue
+        </a>
+      </div>
+    </div>
+  );
+};
 
 // --- APP CONTAINER & NAVIGATION ---
 const firebaseConfig = {
   apiKey: "AIzaSyCwmD9eLNGGjBUtTeq3cu946WiD35myVxc",
   authDomain: "espritnu-470c7.firebaseapp.com",
-  projectId: "espiritnu-470c7",
+  projectId: "espritnu-470c7",
   storageBucket: "espritnu-470c7.appspot.com",
   messagingSenderId: "923716152651",
   appId: "1:923716152651:web:f5f83543627b6babc34cce",
@@ -1257,35 +1364,10 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-const BTN_PRIMARY =
-  "w-full bg-[var(--color-accent)] text-[var(--color-accent-ink)] py-4 rounded-full font-bold text-base hover:opacity-90 transition-opacity shadow-lg focus:outline-none focus:ring-2 focus:ring-[var(--color-glow)] glow-cta disabled:opacity-50 disabled:cursor-not-allowed";
-const BTN_SECONDARY =
-  "w-full bg-[var(--color-surface)] border border-[var(--color-surface-border)] text-[var(--color-text-subtle)] py-4 rounded-full font-semibold text-base hover:bg-white/15 hover:text-[var(--color-text)] transition-colors shadow-lg focus:outline-none focus:ring-2 focus:ring-[var(--color-glow)] disabled:opacity-50 disabled:cursor-not-allowed";
-const CARD_SURFACE =
-  "bg-[var(--color-surface)] border border-[var(--color-surface-border)] backdrop-blur-lg rounded-2xl p-8 w-full max-w-sm shadow-[var(--shadow-soft)]";
-
-function GlowCTA({
-  children,
-  className = "",
-  ...props
-}: {
-  children: React.ReactNode;
-  className?: string;
-  [key: string]: any;
-}) {
-  return (
-    <button
-      {...props}
-      className={`${BTN_PRIMARY} animate-[glowPulse_2.8s_ease-in-out_infinite] ${className}`}
-    >
-      {children}
-    </button>
-  );
-}
-
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
   const [isAuthReady, setIsAuthReady] = useState(false);
+  const [isFeedbackModalOpen, setIsFeedbackModalOpen] = useState(false);
   const [currentScreen, setCurrentScreen] = useState("Login");
   const [selectedMood, setSelectedMood] = useState("");
   const [selectedWhisper, setSelectedWhisper] = useState<Whisper | null>(null);
@@ -1360,8 +1442,6 @@ export default function App() {
     setHasOnboarded(true);
     setCurrentScreen("Login");
   };
-
-  // This function is kept but will not be called from the main UI for now.
   const handleLinkAccount = async () => {
     if (!auth.currentUser) return;
     const provider = new GoogleAuthProvider();
@@ -1394,6 +1474,7 @@ export default function App() {
             setSelectedMood={setSelectedMood}
             auth={auth}
             currentStage={currentStage}
+            onOpenFeedbackModal={() => setIsFeedbackModalOpen(true)}
           />
         );
       case "WhisperReveal":
@@ -1431,6 +1512,7 @@ export default function App() {
             setSelectedMood={setSelectedMood}
             auth={auth}
             currentStage={currentStage}
+            onOpenFeedbackModal={() => setIsFeedbackModalOpen(true)}
           />
         );
     }
@@ -1460,6 +1542,10 @@ export default function App() {
           onDismiss={() => setToast({ show: false, message: "" })}
         />
       </div>
+      <FeedbackModal
+        show={isFeedbackModalOpen}
+        onClose={() => setIsFeedbackModalOpen(false)}
+      />
     </main>
   );
 }
