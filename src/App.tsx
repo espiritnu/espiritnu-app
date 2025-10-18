@@ -1300,10 +1300,10 @@ const SavedReflectionsScreen = ({
 };
 
 // --- APP CONTAINER & NAVIGATION ---
-// CORRECTED FIREBASE CONFIGURATION
+// CORRECTED FIREBASE CONFIGURATION (Final Deployment Version)
 const firebaseConfig = {
   apiKey: "AIzaSyCwmD9eLNGGjBUtTeq3cu946WiD35myVxc",
-  authDomain: "espiritnu-470c7.firebaseapp.com",
+  authDomain: "espritnu.com", // <--- THIS IS THE CRITICAL CHANGE
   projectId: "espiritnu-470c7",
   storageBucket: "espiritnu-470c7.appspot.com", // FINAL CONFIGURATION 10/18/2025
   messagingSenderId: "923716152651",
