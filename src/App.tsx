@@ -1300,10 +1300,10 @@ const SavedReflectionsScreen = ({
 };
 
 // --- APP CONTAINER & NAVIGATION ---
-// CORRECTED FIREBASE CONFIGURATION (Final Deployment Version)
+// CORRECTED FIREBASE CONFIGURATION (Reverted authDomain for production compatibility)
 const firebaseConfig = {
   apiKey: "AIzaSyCwmD9eLNGGjBUtTeq3cu946WiD35myVxc",
-  authDomain: "espritnu.com", // <--- THIS IS THE CRITICAL CHANGE
+  authDomain: "espritnu-470c7.firebaseapp.com", // <--- REVERTED TO DEFAULT FOR LIVE SITE FIX
   projectId: "espiritnu-470c7",
   storageBucket: "espiritnu-470c7.appspot.com", // FINAL CONFIGURATION 10/18/2025
   messagingSenderId: "923716152651",
@@ -1313,7 +1313,6 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
-
 // THEME: helpers
 // ...Your theme helpers and the main App component follow this block.
 
