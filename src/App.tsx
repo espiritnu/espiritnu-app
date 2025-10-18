@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from "react";
 import { initializeApp } from "firebase/app";
 import {
   getAuth,
-  signInAnonymously,
   onAuthStateChanged,
   signOut,
   GoogleAuthProvider,
@@ -22,9 +21,7 @@ import {
   Timestamp,
 } from "firebase/firestore";
 
-// --- FIX: ADDED TYPE DEFINITIONS ---
-// This tells TypeScript the "shape" of our data objects.
-
+// --- TYPE DEFINITIONS ---
 type Whisper = {
   id: string;
   whisperType: string;
@@ -43,7 +40,7 @@ type Reflection = {
   whisperEmotion: string;
   whisperType: string;
   entry: string;
-  date?: string; // This property is added later, so it's optional
+  date?: string;
 };
 
 type ProgressionStage = {
@@ -73,60 +70,24 @@ type Stats = {
   deepWrites: number;
   longestStreak: number;
 };
-// --- END OF FIX ---
 
-// THEME: tokens and styles
+// --- THEME & STYLES ---
 const GlobalStyles = () => (
   <style>{`
       @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Lora:wght@400;700&display=swap');
       body { font-family: 'Inter', sans-serif; }
       .font-lora { font-family: 'Lora', serif; }
-
       :root{
-        --color-bg:#212F26;
-        --color-surface:rgba(255,255,255,0.06);
-        --color-surface-border:rgba(255,255,255,0.20);
-        --color-text:#E0EAE3;
-        --color-text-muted:#C0CAC4;
-        --color-text-subtle:#A0A7A3;
-        --color-accent:#76A68A;
-        --color-accent-ink:#212F26;
-        --color-glow:#8BA72D;
-        --shadow-soft:0 10px 30px rgba(0,0,0,0.25);
+        --color-bg:#212F26; --color-surface:rgba(255,255,255,0.06); --color-surface-border:rgba(255,255,255,0.20);
+        --color-text:#E0EAE3; --color-text-muted:#C0CAC4; --color-text-subtle:#A0A7A3;
+        --color-accent:#76A68A; --color-accent-ink:#212F26; --color-glow:#8BA72D; --shadow-soft:0 10px 30px rgba(0,0,0,0.25);
       }
-
-      @keyframes fadeIn { from{opacity:0} to{opacity:1} }
-      .animate-fadeIn{ animation:fadeIn .5s ease-in-out }
-
-      @keyframes fadeOut { from{opacity:1} to{opacity:0} }
-      .animate-fadeOut{ animation:fadeOut .5s ease-in-out forwards }
-
-      @keyframes scaleIn { from{opacity:0;transform:scale(.97)} to{opacity:1;transform:scale(1)} }
-      .animate-scaleIn{ animation:scaleIn .5s ease-in-out }
-
-      @keyframes glowPulse {
-        0%   { box-shadow:0 0 0px var(--color-glow); }
-        50%  { box-shadow:0 0 22px var(--color-glow); }
-        100% { box-shadow:0 0 0px var(--color-glow); }
-      }
-
-      @keyframes fireflyFloat {
-        0%   { transform:translate3d(0,0,0) scale(.9);   opacity:.0; }
-        10%  { opacity:.85; }
-        50%  { transform:translate3d(20px,-30px,0) scale(1); }
-        80%  { opacity:.6; }
-        100% { transform:translate3d(-10px,-60px,0) scale(.95); opacity:.0; }
-      }
-      @keyframes fireflyTwinkle {
-        0%,100% { filter:drop-shadow(0 0 0px var(--color-glow)); }
-        50%     { filter:drop-shadow(0 0 10px var(--color-glow)); }
-      }
-
-      @media (prefers-reduced-motion: reduce){
-        .animate-fadeIn,.animate-scaleIn{ animation:none }
-        .glow-cta{ animation:none }
-        .firefly{ animation:none }
-      }
+      @keyframes fadeIn { from{opacity:0} to{opacity:1} } .animate-fadeIn{ animation:fadeIn .5s ease-in-out }
+      @keyframes scaleIn { from{opacity:0;transform:scale(.97)} to{opacity:1;transform:scale(1)} } .animate-scaleIn{ animation:scaleIn .5s ease-in-out }
+      @keyframes glowPulse { 0%{box-shadow:0 0 0px var(--color-glow);} 50%{box-shadow:0 0 22px var(--color-glow);} 100%{box-shadow:0 0 0px var(--color-glow);} }
+      @keyframes fireflyFloat { 0%{transform:translate3d(0,0,0) scale(.9);opacity:.0;} 10%{opacity:.85;} 50%{transform:translate3d(20px,-30px,0) scale(1);} 80%{opacity:.6;} 100%{transform:translate3d(-10px,-60px,0) scale(.95);opacity:.0;} }
+      @keyframes fireflyTwinkle { 0%,100%{filter:drop-shadow(0 0 0px var(--color-glow));} 50%{filter:drop-shadow(0 0 10px var(--color-glow));} }
+      @media (prefers-reduced-motion: reduce){ .animate-fadeIn,.animate-scaleIn,.glow-cta,.firefly{ animation:none } }
   `}</style>
 );
 
@@ -183,7 +144,6 @@ const LogoutIcon = () => (
     <line x1="21" y1="12" x2="9" y2="12"></line>
   </svg>
 );
-
 const HeartIcon = () => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
@@ -199,7 +159,6 @@ const HeartIcon = () => (
     <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
   </svg>
 );
-
 const GoogleIcon = () => (
   <svg
     className="mr-2"
@@ -242,7 +201,6 @@ type FireflyType = {
 function FirefliesLayer({ baseCount = 12, additionalCount = 0 }) {
   const [flies, setFlies] = useState<FireflyType[]>([]);
   const totalCount = baseCount + additionalCount;
-
   useEffect(() => {
     const arr: FireflyType[] = Array.from({ length: totalCount }).map(
       (_, i) => ({
@@ -257,7 +215,6 @@ function FirefliesLayer({ baseCount = 12, additionalCount = 0 }) {
     );
     setFlies(arr);
   }, [totalCount]);
-
   return (
     <div
       aria-hidden
@@ -292,7 +249,7 @@ function FirefliesLayer({ baseCount = 12, additionalCount = 0 }) {
   );
 }
 
-// WHISPERS: embedded CSV & PROGRESSION: data
+// --- DATA & LOGIC ---
 const WHISPERS: Whisper[] = [
   {
     id: "326",
@@ -757,8 +714,6 @@ const STRINGS = {
   releaseAffirmation: "Releasing to welcome a new whisper.",
   emptySaved: "Your saved reflections will appear here as your glow grows.",
 };
-
-// WHISPERS & PROGRESSION: Logic
 function getShownSet(mood: string): Set<string> {
   try {
     return new Set(
@@ -784,7 +739,6 @@ const MOOD_INDEX: Map<string, Whisper[]> = (() => {
     e.get(o)?.push(t);
   }
   for (const t of e.values()) {
-    // AFTER
     t.sort((e: Whisper, t: Whisper) => e.randomSeed - t.randomSeed);
   }
   return e;
@@ -868,21 +822,18 @@ const Toast = ({
       return () => clearTimeout(timer);
     }
   }, [show, onDismiss]);
-
   return show ? (
     <div className="fixed bottom-10 left-1/2 -translate-x-1/2 bg-[var(--color-surface)] text-[var(--color-text)] px-6 py-3 rounded-full shadow-[var(--shadow-soft)] border border-[var(--color-surface-border)] animate-fadeIn">
       {message}
     </div>
   ) : null;
 };
-
 const ProgressionBadge = ({ stage }: { stage: ProgressionStage }) => (
   <div className="absolute top-6 left-6 flex items-center gap-2 bg-[var(--color-surface)] border border-[var(--color-surface-border)] px-3 py-1.5 rounded-full text-sm animate-fadeIn">
     <span className="text-lg">{stage.icon}</span>
     <span className="font-semibold text-[var(--color-text)]">{stage.name}</span>
   </div>
 );
-
 const LinkAccountPrompt = ({ onLink }: { onLink: () => void }) => (
   <div className={`${CARD_SURFACE} max-w-none text-center mb-8 animate-fadeIn`}>
     <h3 className="text-xl font-lora font-bold text-[var(--color-text)] mb-2">
@@ -908,27 +859,23 @@ const AboutScreen = ({
   setCurrentScreen: (screen: string) => void;
 }) => {
   const DONATION_URL = "https://buymeacoffee.com/espiritnu";
-
   return (
     <div className="w-full h-full p-6 flex flex-col items-center justify-center text-center animate-fadeIn">
       <div className={`${CARD_SURFACE} relative`}>
         <h2 className="text-3xl font-lora font-bold text-[var(--color-text)] mb-6">
           About Espiritnu
         </h2>
-
         <p className="text-base text-[var(--color-text-muted)] leading-relaxed mb-4">
           Hi, I'm Emilie. I created Espiritnu from a simple belief: in a world
           that’s always asking for our attention, we all deserve a quiet space
           to simply be with our emotions.
         </p>
-
         <p className="text-base text-[var(--color-text-muted)] leading-relaxed mb-8">
           As a one-person project, my promise is to keep this a true
           sanctuary—always ad-free, private, and calm. If you find a moment of
           peace here, your support helps cover the costs to keep this space
           running and allows its journey to continue.
         </p>
-
         <a
           href={DONATION_URL}
           target="_blank"
@@ -938,7 +885,6 @@ const AboutScreen = ({
           ☕ Buy Me a Coffee
         </a>
       </div>
-
       <div className="mt-8 w-full max-w-sm">
         <button
           onClick={() => setCurrentScreen("MoodSelection")}
@@ -950,11 +896,9 @@ const AboutScreen = ({
     </div>
   );
 };
-
 const OnboardingScreen = ({ onFinish }: { onFinish: () => void }) => {
   const [slide, setSlide] = useState(0);
   const content = STRINGS.onboarding;
-
   const handleNext = () => {
     if (slide < content.length - 1) {
       setSlide(slide + 1);
@@ -962,7 +906,6 @@ const OnboardingScreen = ({ onFinish }: { onFinish: () => void }) => {
       onFinish();
     }
   };
-
   return (
     <div className="w-full h-full p-6 flex flex-col justify-center items-center text-center animate-fadeIn">
       <div className={`${CARD_SURFACE} flex flex-col items-center`}>
@@ -992,12 +935,12 @@ const OnboardingScreen = ({ onFinish }: { onFinish: () => void }) => {
   );
 };
 
+// *** FINAL FIX: LoginScreen now uses signInWithRedirect ***
 const LoginScreen = ({ auth }: { auth: any }) => {
   const handleLogin = async () => {
     if (!auth) return;
     try {
       const provider = new GoogleAuthProvider();
-      // SWITCHING TO REDIRECT FLOW to avoid custom domain COOP errors
       await signInWithRedirect(auth, provider);
     } catch (e) {
       console.error("Login failed", e);
@@ -1046,7 +989,6 @@ const MoodSelectionScreen = ({
   return (
     <div className="w-full h-full p-6 flex flex-col items-center animate-fadeIn">
       <ProgressionBadge stage={currentStage} />
-
       <button
         onClick={() => setCurrentScreen("About")}
         className="absolute top-6 right-6 text-[var(--color-text-subtle)] hover:text-[var(--color-text)] transition-colors"
@@ -1054,7 +996,6 @@ const MoodSelectionScreen = ({
       >
         <HeartIcon />
       </button>
-
       <div className="flex-grow flex flex-col justify-center items-center">
         <h1 className="text-4xl font-lora font-bold text-[var(--color-text)] text-center mb-2">
           Espiritnu
@@ -1091,7 +1032,6 @@ const MoodSelectionScreen = ({
     </div>
   );
 };
-
 const WhisperRevealScreen = ({
   setCurrentScreen,
   mood,
@@ -1173,7 +1113,6 @@ const WhisperRevealScreen = ({
     </div>
   );
 };
-
 const JournalingScreen = ({
   setCurrentScreen,
   whisper,
@@ -1235,7 +1174,6 @@ const JournalingScreen = ({
     </div>
   );
 };
-
 const SavedReflectionsScreen = ({
   reflections,
   setCurrentScreen,
@@ -1304,12 +1242,11 @@ const SavedReflectionsScreen = ({
 };
 
 // --- APP CONTAINER & NAVIGATION ---
-// CORRECTED FIREBASE CONFIGURATION (Reverted authDomain for production compatibility)
 const firebaseConfig = {
   apiKey: "AIzaSyCwmD9eLNGGjBUtTeq3cu946WiD35myVxc",
-  authDomain: "espritnu-470c7.firebaseapp.com", // REVERTED TO DEFAULT FOR LIVE SITE FIX
+  authDomain: "espritnu-470c7.firebaseapp.com",
   projectId: "espiritnu-470c7",
-  storageBucket: "espritnu-470c7.appspot.com", // FINAL CONFIGURATION 10/18/2025
+  storageBucket: "espritnu-470c7.appspot.com",
   messagingSenderId: "923716152651",
   appId: "1:923716152651:web:f5f83543627b6babc34cce",
   measurementId: "G-CLHZ4KS5GK",
@@ -1317,8 +1254,6 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
-// THEME: helpers
-// ...Your theme helpers and the main App component follow this block.
 
 const BTN_PRIMARY =
   "w-full bg-[var(--color-accent)] text-[var(--color-accent-ink)] py-4 rounded-full font-bold text-base hover:opacity-90 transition-opacity shadow-lg focus:outline-none focus:ring-2 focus:ring-[var(--color-glow)] glow-cta disabled:opacity-50 disabled:cursor-not-allowed";
@@ -1326,6 +1261,7 @@ const BTN_SECONDARY =
   "w-full bg-[var(--color-surface)] border border-[var(--color-surface-border)] text-[var(--color-text-subtle)] py-4 rounded-full font-semibold text-base hover:bg-white/15 hover:text-[var(--color-text)] transition-colors shadow-lg focus:outline-none focus:ring-2 focus:ring-[var(--color-glow)] disabled:opacity-50 disabled:cursor-not-allowed";
 const CARD_SURFACE =
   "bg-[var(--color-surface)] border border-[var(--color-surface-border)] backdrop-blur-lg rounded-2xl p-8 w-full max-w-sm shadow-[var(--shadow-soft)]";
+
 function GlowCTA({
   children,
   className = "",
@@ -1378,19 +1314,15 @@ export default function App() {
     return () => unsubscribe();
   }, [hasOnboarded]);
 
-  // NEW USE EFFECT BLOCK TO HANDLE GOOGLE REDIRECT RESULT
+  // *** FINAL FIX: New useEffect to handle the result from Google's redirect ***
   useEffect(() => {
     const handleRedirectResult = async () => {
       try {
-        // Checks if the app is loading due to a sign-in redirect
         const result = await getRedirectResult(auth);
         if (result) {
-          // Firebase automatically signs the user in/updates the session.
-          // The onAuthStateChanged hook will handle navigation.
           console.log("Redirect sign-in successful:", result.user);
         }
       } catch (error) {
-        // If the redirect fails (e.g., user closed the window before), handle the error.
         console.error("Redirect sign-in error:", error);
       }
     };
@@ -1423,7 +1355,6 @@ export default function App() {
   useEffect(() => {
     const stats = calculateProgressionStats(reflections);
     const newStage = determineCurrentStage(stats);
-
     if (newStage && newStage.id !== prevStageId.current) {
       setCurrentStage(newStage);
       showToast(
@@ -1437,13 +1368,11 @@ export default function App() {
   }, [reflections]);
 
   const showToast = (message: string) => setToast({ show: true, message });
-
   const handleOnboardingFinish = () => {
     localStorage.setItem("espiritnu_has_onboarded", "true");
     setHasOnboarded(true);
     setCurrentScreen("Login");
   };
-
   const handleLinkAccount = async () => {
     if (!auth.currentUser) return;
     const provider = new GoogleAuthProvider();
@@ -1462,16 +1391,13 @@ export default function App() {
           Connecting...
         </div>
       );
-
     if (!hasOnboarded && !user)
       return <OnboardingScreen onFinish={handleOnboardingFinish} />;
-
     if (!user) return <LoginScreen auth={auth} />;
 
     switch (currentScreen) {
       case "About":
         return <AboutScreen setCurrentScreen={setCurrentScreen} />;
-
       case "MoodSelection":
         return (
           <MoodSelectionScreen
@@ -1529,15 +1455,11 @@ export default function App() {
       <div
         className="pointer-events-none absolute inset-0"
         style={{
-          background: `
-            radial-gradient(900px 700px at 78% 20%, rgba(139,167,45,${
-              0.1 * visualRewards.glowIntensity
-            }), transparent 60%),
-            radial-gradient(700px 600px at 22% 80%, rgba(139,167,45,${
-              0.07 * visualRewards.glowIntensity
-            }), transparent 60%),
-            radial-gradient(1000px 1000px at 50% 50%, rgba(255,255,255,0.04), transparent 70%)
-          `,
+          background: `radial-gradient(900px 700px at 78% 20%, rgba(139,167,45,${
+            0.1 * visualRewards.glowIntensity
+          }), transparent 60%), radial-gradient(700px 600px at 22% 80%, rgba(139,167,45,${
+            0.07 * visualRewards.glowIntensity
+          }), transparent 60%), radial-gradient(1000px 1000px at 50% 50%, rgba(255,255,255,0.04), transparent 70%)`,
         }}
       />
       <FirefliesLayer additionalCount={visualRewards.fireflies} />
