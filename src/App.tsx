@@ -8,6 +8,8 @@ import {
   GoogleAuthProvider,
   linkWithPopup,
   User,
+  signInWithRedirect, // ADDED FOR REDIRECT FLOW
+  getRedirectResult, // ADDED FOR REDIRECT FLOW
 } from "firebase/auth";
 import {
   getFirestore,
@@ -994,7 +996,9 @@ const LoginScreen = ({ auth }: { auth: any }) => {
   const handleLogin = async () => {
     if (!auth) return;
     try {
-      await signInAnonymously(auth);
+      const provider = new GoogleAuthProvider();
+      // SWITCHING TO REDIRECT FLOW to avoid custom domain COOP errors
+      await signInWithRedirect(auth, provider);
     } catch (e) {
       console.error("Login failed", e);
     }
@@ -1008,7 +1012,7 @@ const LoginScreen = ({ auth }: { auth: any }) => {
         Your space for emotional clarity.
       </p>
       <GlowCTA onClick={handleLogin} className="max-w-sm">
-        Begin Your Journey
+        Sign in with Google
       </GlowCTA>
     </div>
   );
@@ -1303,9 +1307,9 @@ const SavedReflectionsScreen = ({
 // CORRECTED FIREBASE CONFIGURATION (Reverted authDomain for production compatibility)
 const firebaseConfig = {
   apiKey: "AIzaSyCwmD9eLNGGjBUtTeq3cu946WiD35myVxc",
-  authDomain: "espritnu-470c7.firebaseapp.com", // <--- REVERTED TO DEFAULT FOR LIVE SITE FIX
+  authDomain: "espritnu-470c7.firebaseapp.com", // REVERTED TO DEFAULT FOR LIVE SITE FIX
   projectId: "espiritnu-470c7",
-  storageBucket: "espiritnu-470c7.appspot.com", // FINAL CONFIGURATION 10/18/2025
+  storageBucket: "espritnu-470c7.appspot.com", // FINAL CONFIGURATION 10/18/2025
   messagingSenderId: "923716152651",
   appId: "1:923716152651:web:f5f83543627b6babc34cce",
   measurementId: "G-CLHZ4KS5GK",
@@ -1373,6 +1377,25 @@ export default function App() {
     });
     return () => unsubscribe();
   }, [hasOnboarded]);
+
+  // NEW USE EFFECT BLOCK TO HANDLE GOOGLE REDIRECT RESULT
+  useEffect(() => {
+    const handleRedirectResult = async () => {
+      try {
+        // Checks if the app is loading due to a sign-in redirect
+        const result = await getRedirectResult(auth);
+        if (result) {
+          // Firebase automatically signs the user in/updates the session.
+          // The onAuthStateChanged hook will handle navigation.
+          console.log("Redirect sign-in successful:", result.user);
+        }
+      } catch (error) {
+        // If the redirect fails (e.g., user closed the window before), handle the error.
+        console.error("Redirect sign-in error:", error);
+      }
+    };
+    handleRedirectResult();
+  }, []);
 
   useEffect(() => {
     if (!user) {
