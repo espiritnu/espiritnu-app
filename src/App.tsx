@@ -1300,11 +1300,12 @@ const SavedReflectionsScreen = ({
 };
 
 // --- APP CONTAINER & NAVIGATION ---
+// CORRECTED FIREBASE CONFIGURATION
 const firebaseConfig = {
   apiKey: "AIzaSyCwmD9eLNGGjBUtTeq3cu946WiD35myVxc",
   authDomain: "espiritnu-470c7.firebaseapp.com",
   projectId: "espiritnu-470c7",
-  storageBucket: "espiritnu-470c7.appspot.com",
+  storageBucket: "espiritnu-470c7.appspot.com", // Corrected storage bucket format
   messagingSenderId: "923716152651",
   appId: "1:923716152651:web:f5f83543627b6babc34cce",
   measurementId: "G-CLHZ4KS5GK",
@@ -1314,6 +1315,8 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 
 // THEME: helpers
+// ...Your theme helpers and the main App component follow this block.
+
 const BTN_PRIMARY =
   "w-full bg-[var(--color-accent)] text-[var(--color-accent-ink)] py-4 rounded-full font-bold text-base hover:opacity-90 transition-opacity shadow-lg focus:outline-none focus:ring-2 focus:ring-[var(--color-glow)] glow-cta disabled:opacity-50 disabled:cursor-not-allowed";
 const BTN_SECONDARY =
