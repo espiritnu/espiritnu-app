@@ -1305,7 +1305,7 @@ const firebaseConfig = {
   apiKey: "AIzaSyCwmD9eLNGGjBUtTeq3cu946WiD35myVxc",
   authDomain: "espiritnu-470c7.firebaseapp.com",
   projectId: "espiritnu-470c7",
-  storageBucket: "espiritnu-470c7.appspot.com", // Corrected storage bucket format
+  storageBucket: "espiritnu-470c7.appspot.com", // FINAL CONFIGURATION 10/18/2025
   messagingSenderId: "923716152651",
   appId: "1:923716152651:web:f5f83543627b6babc34cce",
   measurementId: "G-CLHZ4KS5GK",
