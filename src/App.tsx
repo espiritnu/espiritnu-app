@@ -2,13 +2,12 @@ import React, { useState, useEffect, useRef } from "react";
 import { initializeApp } from "firebase/app";
 import {
   getAuth,
+  signInAnonymously, // Add this line back
   onAuthStateChanged,
   signOut,
   GoogleAuthProvider,
   linkWithPopup,
   User,
-  signInWithRedirect, // ADDED FOR REDIRECT FLOW
-  getRedirectResult, // ADDED FOR REDIRECT FLOW
 } from "firebase/auth";
 import {
   getFirestore,
@@ -935,13 +934,12 @@ const OnboardingScreen = ({ onFinish }: { onFinish: () => void }) => {
   );
 };
 
-// *** FINAL FIX: LoginScreen now uses signInWithRedirect ***
+// *** REVERTED: LoginScreen now uses signInAnonymously ***
 const LoginScreen = ({ auth }: { auth: any }) => {
   const handleLogin = async () => {
     if (!auth) return;
     try {
-      const provider = new GoogleAuthProvider();
-      await signInWithRedirect(auth, provider);
+      await signInAnonymously(auth);
     } catch (e) {
       console.error("Login failed", e);
     }
@@ -955,7 +953,7 @@ const LoginScreen = ({ auth }: { auth: any }) => {
         Your space for emotional clarity.
       </p>
       <GlowCTA onClick={handleLogin} className="max-w-sm">
-        Sign in with Google
+        Begin Your Journey
       </GlowCTA>
     </div>
   );
@@ -1174,6 +1172,8 @@ const JournalingScreen = ({
     </div>
   );
 };
+
+// *** CHANGED: Temporarily removing the account link prompt ***
 const SavedReflectionsScreen = ({
   reflections,
   setCurrentScreen,
@@ -1191,7 +1191,9 @@ const SavedReflectionsScreen = ({
         Saved Reflections
       </h1>
       <div className="flex-grow overflow-y-auto px-6 pb-6">
-        {isAnonymous && <LinkAccountPrompt onLink={onLinkAccount} />}
+        {/* The Google Sign-In prompt is temporarily disabled to ensure stability. */}
+        {/* {isAnonymous && <LinkAccountPrompt onLink={onLinkAccount} />} */}
+
         {reflections.length === 0 ? (
           <div className="flex h-full items-center justify-center">
             <p className="text-lg text-[var(--color-text-subtle)] text-center">
@@ -1314,21 +1316,6 @@ export default function App() {
     return () => unsubscribe();
   }, [hasOnboarded]);
 
-  // *** FINAL FIX: New useEffect to handle the result from Google's redirect ***
-  useEffect(() => {
-    const handleRedirectResult = async () => {
-      try {
-        const result = await getRedirectResult(auth);
-        if (result) {
-          console.log("Redirect sign-in successful:", result.user);
-        }
-      } catch (error) {
-        console.error("Redirect sign-in error:", error);
-      }
-    };
-    handleRedirectResult();
-  }, []);
-
   useEffect(() => {
     if (!user) {
       setReflections([]);
@@ -1373,6 +1360,8 @@ export default function App() {
     setHasOnboarded(true);
     setCurrentScreen("Login");
   };
+
+  // This function is kept but will not be called from the main UI for now.
   const handleLinkAccount = async () => {
     if (!auth.currentUser) return;
     const provider = new GoogleAuthProvider();
