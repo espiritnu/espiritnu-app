@@ -1559,17 +1559,15 @@ const BreathingExercise = ({
     </div>
   );
 };
-
 // --- APP CONTAINER & NAVIGATION ---
-// This is where you paste your config object from Firebase
 const firebaseConfig = {
-  apiKey: "AIzaSyCwmD9eLNGGjBUtTeq3cu946WiD35myVxc",
-  authDomain: "espiritnu-470c7.firebaseapp.com",
-  projectId: "espiritnu-470c7",
-  storageBucket: "espiritnu-470c7.firebasestorage.app",
-  messagingSenderId: "923716152651",
-  appId: "1:923716152651:web:f5f83543627b6babc34cce",
-  measurementId: "G-CLHZ4KS5GK",
+  apiKey: process.env.REACT_APP_API_KEY,
+  authDomain: process.env.REACT_APP_AUTH_DOMAIN,
+  projectId: process.env.REACT_APP_PROJECT_ID,
+  storageBucket: process.env.REACT_APP_STORAGE_BUCKET,
+  messagingSenderId: process.env.REACT_APP_MESSAGING_SENDER_ID,
+  appId: process.env.REACT_APP_APP_ID,
+  measurementId: process.env.REACT_APP_MEASUREMENT_ID,
 };
 
 const app = initializeApp(firebaseConfig);
