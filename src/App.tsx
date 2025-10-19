@@ -16,7 +16,7 @@ import {
   query,
   onSnapshot,
   orderBy,
-  serverTimestamp,
+  serverTimestamp, // THIS WAS THE MISSING PIECE
   Timestamp,
 } from "firebase/firestore";
 
@@ -217,6 +217,24 @@ const QuestionMarkIcon = () => (
     <circle cx="12" cy="12" r="10"></circle>
     <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
     <line x1="12" y1="17" x2="12.01" y2="17"></line>
+  </svg>
+);
+const BreathIcon = () => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="16"
+    height="16"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2.5"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className="mr-1.5"
+  >
+    <path d="M21.18 12.87A9 9 0 1 0 11.13 22a9 9 0 0 0 10.05-9.13Z" />
+    <path d="M12 12a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" />
+    <path d="M12 12a6 6 0 0 0 6 6" />
   </svg>
 );
 
@@ -793,8 +811,8 @@ function pickNextWhisper(list: Whisper[], mood: string): Whisper | null {
 function calculateProgressionStats(reflections: Reflection[]): Stats {
   const totalReflections = reflections.length;
   const uniqueMoods = new Set(reflections.map((r) => r.whisperEmotion)).size;
-  const deepWrites = reflections.filter(
-    (r) => (r.entry || "").length > 180
+  const deepWrites = reflections.filter((r) =>
+    (r.entry || "").includes("—\n")
   ).length;
   let longestStreak = 0;
   if (reflections.length > 0) {
@@ -837,6 +855,36 @@ function determineCurrentStage(stats: Stats): ProgressionStage {
       return stage;
   }
   return PROGRESSION_STAGES[0];
+}
+function getDeeperQuestions(mood: string): string[] {
+  const lowerMood = mood.toLowerCase();
+  switch (lowerMood) {
+    case "anxious":
+    case "frustrated":
+    case "sad":
+      return [
+        "Where do you feel this emotion in your body?",
+        "What's one word you would use to label this feeling?",
+        "What thought or story is attached to this feeling?",
+      ];
+    case "hopeful":
+    case "openhearted":
+    case "empowered":
+      return [
+        "What does this feeling make you want to create or do?",
+        "What one word captures the energy of this feeling?",
+        "Who or what comes to mind when you feel this way?",
+      ];
+    case "reflective":
+    case "detached":
+      return [
+        "What new perspective does this feeling offer you?",
+        "What one word describes this state of mind?",
+        "From this state, what advice would you give yourself?",
+      ];
+    default:
+      return [];
+  }
 }
 
 // --- UI COMPONENTS ---
@@ -1176,18 +1224,20 @@ const WhisperRevealScreen = ({
         <button onClick={handleRelease} className={`${BTN_SECONDARY} max-w-sm`}>
           Release Whisper
         </button>
-        <button
-          onClick={onStartBreathing}
-          className="text-[var(--color-text-subtle)] hover:text-[var(--color-text)] transition-colors w-full mt-2"
-        >
-          Take a Breath
-        </button>
-        <button
-          onClick={() => setCurrentScreen("MoodSelection")}
-          className="text-[var(--color-text-subtle)] hover:text-[var(--color-text)] transition-colors w-full"
-        >
-          ← Back to Moods
-        </button>
+        <div className="flex justify-center items-center pt-2 space-x-8">
+          <button
+            onClick={onStartBreathing}
+            className="flex items-center text-sm text-[var(--color-text-subtle)] hover:text-[var(--color-text)] transition-colors"
+          >
+            <BreathIcon /> Take a Breath
+          </button>
+          <button
+            onClick={() => setCurrentScreen("MoodSelection")}
+            className="text-sm text-[var(--color-text-subtle)] hover:text-[var(--color-text)] transition-colors"
+          >
+            ← Back
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -1210,18 +1260,20 @@ const JournalingScreen = ({
   const [entry, setEntry] = useState("");
   const [deeperAnswers, setDeeperAnswers] = useState<string[]>([]);
   const [currentDeeperQuestion, setCurrentDeeperQuestion] = useState(-1);
-  const DEEPER_QUESTIONS = [
-    "Where do you feel this emotion in your body?",
-    "What's one word you would use to label this feeling?",
-    "What thought or story is attached to this feeling?",
-  ];
+  const DEEPER_QUESTIONS = getDeeperQuestions(mood);
   const handleDeeperAnswerChange = (index: number, value: string) => {
     const newAnswers = [...deeperAnswers];
     newAnswers[index] = value;
     setDeeperAnswers(newAnswers);
   };
   const saveReflection = async () => {
-    if (entry.trim() === "" || !user || !whisper) return;
+    const hasContentToSave =
+      entry.trim() !== "" ||
+      deeperAnswers.some((answer) => answer && answer.trim() !== "");
+    if (!hasContentToSave || !user || !whisper) {
+      console.log("Save cancelled: No content or user/whisper missing.");
+      return;
+    }
     let finalEntry = entry;
     deeperAnswers.forEach((answer, index) => {
       if (answer && answer.trim() !== "") {
@@ -1257,14 +1309,16 @@ const JournalingScreen = ({
         value={entry}
         onChange={(e) => setEntry(e.target.value)}
       />
-      {entry.length > 20 && currentDeeperQuestion === -1 && (
-        <button
-          onClick={() => setCurrentDeeperQuestion(0)}
-          className="text-sm text-[var(--color-accent)] font-semibold mb-4 animate-fadeIn"
-        >
-          Explore this feeling further →
-        </button>
-      )}
+      {entry.length > 20 &&
+        currentDeeperQuestion === -1 &&
+        DEEPER_QUESTIONS.length > 0 && (
+          <button
+            onClick={() => setCurrentDeeperQuestion(0)}
+            className="text-sm text-[var(--color-accent)] font-semibold mb-4 animate-fadeIn"
+          >
+            Explore this feeling further →
+          </button>
+        )}
       {currentDeeperQuestion > -1 &&
         DEEPER_QUESTIONS.map(
           (q, index) =>
@@ -1385,6 +1439,10 @@ const FeedbackModal = ({
   }
   const updates = [
     {
+      date: "October 19, 2025",
+      text: "New tools for your journey inward are here! Introducing 'The Anchor', a guided breathing exercise to help you find your center, and 'Go Deeper', optional prompts to add a new layer of understanding to your reflections. Plus, we've made critical improvements to ensure every reflection saves perfectly.",
+    },
+    {
       date: "October 18, 2025",
       text: "App is stable with anonymous sign-in. We are planning future updates!",
     },
@@ -1503,15 +1561,17 @@ const BreathingExercise = ({
 };
 
 // --- APP CONTAINER & NAVIGATION ---
+// This is where you paste your config object from Firebase
 const firebaseConfig = {
   apiKey: "AIzaSyCwmD9eLNGGjBUtTeq3cu946WiD35myVxc",
-  authDomain: "espritnu-470c7.firebaseapp.com",
-  projectId: "espritnu-470c7",
-  storageBucket: "espritnu-470c7.appspot.com",
+  authDomain: "espiritnu-470c7.firebaseapp.com",
+  projectId: "espiritnu-470c7",
+  storageBucket: "espiritnu-470c7.firebasestorage.app",
   messagingSenderId: "923716152651",
   appId: "1:923716152651:web:f5f83543627b6babc34cce",
   measurementId: "G-CLHZ4KS5GK",
 };
+
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
