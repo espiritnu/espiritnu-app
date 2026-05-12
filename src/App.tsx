@@ -6,7 +6,8 @@ import {
   onAuthStateChanged,
   signOut,
   GoogleAuthProvider,
-  linkWithPopup,
+  linkWithRedirect,
+  getRedirectResult,
   User,
 } from "firebase/auth";
 import {
@@ -1593,6 +1594,15 @@ export default function App() {
   const prevStageId = useRef(currentStage.id);
 
   useEffect(() => {
+    getRedirectResult(auth)
+      .then((result) => {
+        if (result) {
+          showToast(STRINGS.toastAccountLinked);
+        }
+      })
+      .catch((error) => {
+        console.error("Redirect error:", error);
+      });
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       setUser(user);
       setIsAuthReady(true);
@@ -1657,8 +1667,7 @@ export default function App() {
     if (!auth.currentUser) return;
     const provider = new GoogleAuthProvider();
     try {
-      await linkWithPopup(auth.currentUser, provider);
-      showToast(STRINGS.toastAccountLinked);
+      await linkWithRedirect(auth.currentUser, provider);
     } catch (error) {
       console.error("Error linking account:", error);
     }
